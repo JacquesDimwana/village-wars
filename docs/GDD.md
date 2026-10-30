@@ -86,7 +86,11 @@ Valeurs (coût, PV, taille, postes, production, temps de construction) dans
 | Tour de défense | Tire automatiquement sur les ennemis à portée | — |
 
 Construction : sur grille, tuiles libres et constructibles (`grass`/`sand`), à ≤
-`buildRadius` tuiles d'un bâtiment existant du joueur. Un bâtiment en construction a
+`buildRadius` tuiles d'un bâtiment existant du joueur. On ne peut pas construire sur les
+arbres (`forest`), la roche (`rock`), le minerai (`ore`) ni l'eau. Une tuile de forêt,
+de roche ou de minerai dont la ressource est épuisée (`depletion` à 0) est dégagée :
+elle devient de l'herbe constructible et son décor (arbre, rocher) disparaît. L'eau
+reste toujours infranchissable et inconstructible. Un bâtiment en construction a
 une barre de progression et ne produit rien.
 
 ## 6. Unités
