@@ -3,7 +3,7 @@ import { PLAYER_ID } from '../core/constants';
 import type { GameState, UnitType, WeaponType } from '../core/types';
 import { canAfford } from '../systems/EconomySystem';
 import { assignWorkers, civilians, staffing, warriors } from '../systems/PopulationSystem';
-import { UNIT_UI, WEAPON_UI, costHtml } from './icons';
+import { UNIT_UI, WEAPON_UI, costHtml, gi } from './icons';
 import { Sheet, setHtml, setText } from './Sheet';
 
 const WEAPON_TYPES: WeaponType[] = ['sword', 'bow'];
@@ -18,11 +18,11 @@ export interface ArmyActions {
 /** Armory (forge weapons) + barracks (train / demobilize warriors). */
 export class ArmyPanel extends Sheet {
   constructor(parent: HTMLElement, actions: ArmyActions) {
-    super(parent, '⚔️', 'Armée');
+    super(parent, gi('army'), 'Armée');
     this.body.innerHTML = `
       <div class="army">
         <div class="army-col">
-          <h3>⚒️ Armurerie <small data-k="forge-status"></small></h3>
+          <h3>${gi('armory')} Armurerie <small data-k="forge-status"></small></h3>
           ${WEAPON_TYPES.map((w) => `
             <div class="row" data-weapon="${w}">
               <span class="row-icon">${WEAPON_UI[w].icon}</span>
@@ -33,11 +33,11 @@ export class ArmyPanel extends Sheet {
           <div class="queue" data-k="queue"></div>
         </div>
         <div class="army-col">
-          <h3>🛡️ Caserne <small data-k="barracks-status"></small></h3>
+          <h3>${gi('barracks')} Caserne <small data-k="barracks-status"></small></h3>
           ${UNIT_TYPES.map((u) => `
             <div class="row" data-unit="${u}">
               <span class="row-icon">${UNIT_UI[u].icon}</span>
-              <div class="row-main"><b>${UNITS[u].name.replace(/ \(.*\)/, '')}</b><small>${UNIT_UI[u].role}</small><small class="need">👷1 + ${WEAPON_UI[UNITS[u].weapon].icon}1 · ❤️${UNITS[u].hp} · 💥${UNITS[u].attack}</small></div>
+              <div class="row-main"><b>${UNITS[u].name.replace(/ \(.*\)/, '')}</b><small>${UNIT_UI[u].role}</small><small class="need">${gi('workers')}1 + ${WEAPON_UI[UNITS[u].weapon].icon}1 · ${gi('hp', 'c-hp')}${UNITS[u].hp} · ${gi('sword')}${UNITS[u].attack}</small></div>
               <span class="stock" title="Guerriers">×<b data-k="count">0</b></span>
               <div class="btn-col"><button class="btn green" data-act="train">Former</button><button class="btn small" data-act="demob">Renvoyer</button></div>
             </div>`).join('')}

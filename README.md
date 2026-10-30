@@ -38,6 +38,10 @@ Tout l'équilibrage est dans `src/config/*.json`.
 Modèles 3D : [KayKit](https://kaylousberg.com) par Kay Lousberg — Medieval Hexagon Pack
 et Adventurers Character Pack (CC0).
 
+Interface : [Kenney](https://kenney.nl) — UI Pack (RPG Expansion) et Fantasy UI Borders (CC0).
+Icônes : [game-icons.net](https://game-icons.net) par Lorc, Delapouite et Sbed (CC BY 3.0).
+Détail dans `public/ui/CREDITS.md`.
+
 ## Workflow IA
 
 _À compléter à la fin : outils, découpage en agents, journal de `docs/PLAN.md`,

@@ -6,7 +6,7 @@ import { civilians, housingCap, warriors } from '../systems/PopulationSystem';
 import { ArmyPanel, type ArmyActions } from './ArmyPanel';
 import { BuildPanel } from './BuildPanel';
 import { DiplomacyPanel } from './DiplomacyPanel';
-import { RESOURCE_UI, fmt, hexColor } from './icons';
+import { RESOURCE_UI, fmt, gi, hexColor, kenneySkin } from './icons';
 import { SelectionCard } from './SelectionCard';
 import { Sheet, setText } from './Sheet';
 import './hud.css';
@@ -44,20 +44,21 @@ export class Hud {
     const player = getState().villages[PLAYER_ID];
     this.root = document.createElement('div');
     this.root.className = 'hud';
+    this.root.setAttribute('style', kenneySkin());
     this.root.innerHTML = `
       <button class="village-card" data-act="home" title="Revenir au village">
-        <span class="crest" style="--c:${hexColor(player.color)}">🏰</span>
+        <span class="crest" style="--c:${hexColor(player.color)}">${gi('castle')}</span>
         <div class="village-info">
           <b>${player.name}</b>
           <div class="pop-bar" title="Travailleurs / guerriers / places libres"><i class="workers"></i><i class="warriors"></i></div>
           <div class="pop-legend">
-            <span title="Travailleurs">👷<b data-k="workers">0</b></span>
-            <span title="Guerriers">🛡️<b data-k="warriors">0</b></span>
-            <span title="Places d'habitation">🏠<b data-k="housing">0</b></span>
+            <span title="Travailleurs">${gi('workers', 'c-workers')}<b data-k="workers">0</b></span>
+            <span title="Guerriers">${gi('warriors', 'c-warriors')}<b data-k="warriors">0</b></span>
+            <span title="Places d'habitation">${gi('house')}<b data-k="housing">0</b></span>
           </div>
         </div>
       </button>
-      <button class="round small home-btn" data-act="home" title="Revenir au village"><span class="glyph">🏰</span></button>
+      <button class="round small home-btn" data-act="home" title="Revenir au village"><span class="glyph">${gi('castle')}</span></button>
       <div class="resources">
         ${RESOURCE_UI.map((r) => `
           <div class="res" title="${r.label}">
@@ -67,11 +68,11 @@ export class Hud {
           </div>`).join('')}
       </div>
       <div class="actions-left">
-        <button class="round red big" data-sheet="army"><span class="glyph">⚔️</span><span class="label">Armée</span><span class="badge" data-k="weapons" title="Armes en stock">0</span></button>
-        <button class="round blue" data-sheet="diplomacy"><span class="glyph">🤝</span><span class="label">Diplomatie</span></button>
+        <button class="round red big" data-sheet="army"><span class="glyph">${gi('army')}</span><span class="label">Armée</span><span class="badge" data-k="weapons" title="Armes en stock">0</span></button>
+        <button class="round blue" data-sheet="diplomacy"><span class="glyph">${gi('diplomacy')}</span><span class="label">Diplomatie</span></button>
       </div>
       <div class="actions-right">
-        <button class="round gold big" data-sheet="build"><span class="glyph">🔨</span><span class="label">Construire</span></button>
+        <button class="round gold big" data-sheet="build"><span class="glyph">${gi('build')}</span><span class="label">Construire</span></button>
       </div>
       <div class="toast"></div>
     `;
@@ -114,6 +115,7 @@ export class Hud {
     const state = this.getState();
     for (const [key, sheet] of Object.entries(this.sheets)) sheet.setOpen(key === name, state);
     this.root.classList.toggle('sheet-open', name !== null);
+    document.body.classList.toggle('sheet-open', name !== null);
     if (name) this.selection.select(null);
   }
 

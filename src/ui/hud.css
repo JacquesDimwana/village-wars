@@ -823,3 +823,250 @@
   pointer-events: auto;
   touch-action: none;
 }
+
+/* ======================================================================
+   Kenney skin (CC0: UI Pack RPG Expansion + Fantasy UI Borders) and
+   game-icons.net icons (CC BY 3.0). Image URLs come from --k-* variables
+   set on .hud (see kenneySkin() in icons.ts).
+   ====================================================================== */
+
+/* Recolorable icons */
+.gi {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.2em;
+  background-color: currentColor;
+  -webkit-mask: var(--gi) center / contain no-repeat;
+  mask: var(--gi) center / contain no-repeat;
+  flex: none;
+}
+
+.c-wood { color: #d9934f; }
+.c-stone { color: #c9c9d4; }
+.c-ore { color: #f0b84a; }
+.c-iron { color: #a9c3dc; }
+.c-workers { color: #9be36c; }
+.c-warriors { color: #ff8a7a; }
+.c-hp { color: #ff5a5a; }
+
+.res-icon .gi { font-size: 20px; }
+.crest .gi { font-size: 24px; color: #fff; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.45)); }
+.round .glyph .gi { color: #fff; }
+.round.gold .glyph .gi { color: #5b3b1f; filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.5)); }
+.pop-legend .gi { font-size: 13px; }
+.card-icon .gi { font-size: 38px; color: var(--wood); }
+.card.locked .card-icon .gi { color: #8a7a60; }
+.row-icon .gi { font-size: 30px; color: var(--wood); }
+.sel-icon .gi { font-size: 34px; color: var(--wood); }
+.sheet-icon .gi { color: var(--gold); }
+.shield .gi { color: #fff; }
+.card-time .short { color: #c0392b; }
+
+/* Gold ornament frame (9-slice mask, tinted with the background color) */
+.sheet::before,
+.selection::before,
+.village-card::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  background: var(--gold);
+  opacity: 0.85;
+  -webkit-mask-box-image: var(--k-ornament) 16 / 14px;
+  z-index: 1;
+}
+
+.village-card::before {
+  inset: -2px;
+  border-radius: 30px;
+  opacity: 0.6;
+}
+
+/* Parchment panels */
+.sheet,
+.selection {
+  border: 0;
+  background: transparent;
+}
+
+.sheet {
+  border-image: var(--k-panel) 14 fill / 14px stretch;
+  border-image-outset: 0;
+}
+
+.selection {
+  border-image: var(--k-panel) 14 fill / 14px stretch;
+}
+
+.sheet-head {
+  margin: 4px 4px 0;
+  border: 0;
+  border-image: var(--k-panel-wood) 14 fill / 12px stretch;
+  border-radius: 0;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+.row,
+.village-row,
+.card {
+  border: 0;
+  background: transparent;
+  border-image: var(--k-inset) 12 fill / 12px stretch;
+  box-shadow: none;
+}
+
+.card.locked {
+  border-image-source: var(--k-inset-light);
+}
+
+/* Buttons */
+.btn {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-image: var(--k-btn) 14 fill / 14px stretch;
+  box-shadow: none;
+  padding: 8px 16px 10px;
+}
+
+.btn:active:not(:disabled) {
+  border-image-source: var(--k-btn-pressed);
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.btn.green,
+.btn.blue {
+  border-image-source: var(--k-btn-blue);
+  color: #fff;
+}
+
+.btn.green {
+  filter: hue-rotate(-95deg) saturate(1.25) brightness(1.05);
+}
+
+.btn.green:active:not(:disabled),
+.btn.blue:active:not(:disabled) {
+  border-image-source: var(--k-btn-blue-pressed);
+}
+
+.btn:disabled {
+  border-image-source: var(--k-btn-grey);
+  filter: none;
+  opacity: 0.7;
+}
+
+.tab {
+  border: 0;
+  border-radius: 0;
+  border-image: var(--k-tab) 10 fill / 10px stretch;
+  padding: 6px 14px 8px;
+}
+
+.tab.active {
+  border-image-source: var(--k-tab-active);
+  background: transparent;
+}
+
+.close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--k-close) center / 100% 100% no-repeat;
+  box-shadow: none;
+  font-size: 0;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35));
+}
+
+/* Bars (three-piece Kenney bars) */
+.pop-bar,
+.bar > div {
+  border-radius: 0;
+  box-shadow: none;
+  background:
+    var(--k-bar-back-l) left / auto 100% no-repeat,
+    var(--k-bar-back-r) right / auto 100% no-repeat,
+    var(--k-bar-back-m) center / auto 100% repeat-x;
+}
+
+.pop-bar {
+  height: 10px;
+}
+
+.pop-bar .workers {
+  background:
+    var(--k-bar-green-l) left / auto 100% no-repeat,
+    var(--k-bar-green-m) center / auto 100% repeat-x;
+}
+
+.pop-bar .warriors {
+  background:
+    var(--k-bar-red-m) center / auto 100% repeat-x,
+    var(--k-bar-red-r) right / auto 100% no-repeat;
+}
+
+.bar > div {
+  height: 18px;
+}
+
+.bar i {
+  background:
+    var(--k-bar-green-l) left / auto 100% no-repeat,
+    var(--k-bar-green-r) right / auto 100% no-repeat,
+    var(--k-bar-green-m) center / auto 100% repeat-x;
+}
+
+.bar.build i {
+  background:
+    var(--k-bar-yellow-l) left / auto 100% no-repeat,
+    var(--k-bar-yellow-r) right / auto 100% no-repeat,
+    var(--k-bar-yellow-m) center / auto 100% repeat-x;
+}
+
+.bar em {
+  line-height: 18px;
+}
+
+.credits {
+  margin: 6px 0 0;
+  font-size: 10px;
+  color: #7a6440;
+  text-align: right;
+}
+
+.close {
+  background:
+    var(--k-close) center / 58% 58% no-repeat,
+    radial-gradient(circle at 40% 35%, #ff8a6b, #b5321f 70%);
+  border: 2px solid #5b1a10;
+}
+
+.sheet {
+  max-height: 76vh;
+}
+
+/* A sheet needs the space: hide the minimap and the home button meanwhile. */
+.minimap,
+.home-btn {
+  transition: opacity 0.2s;
+}
+
+body.sheet-open .minimap,
+.hud.sheet-open .home-btn {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Primary actions: wooden button (no green button in the kit). */
+.btn.green {
+  filter: none;
+  border-image-source: var(--k-btn-wood);
+  color: #fff;
+  text-shadow: 0 1px 0 #000;
+}
+
+.btn.green:active:not(:disabled) {
+  border-image-source: var(--k-btn-wood-pressed);
+}
