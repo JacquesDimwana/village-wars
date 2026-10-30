@@ -49,7 +49,7 @@ Ressources de départ : `game.json` → `startingResources`.
 
 C'est le dilemme central : **chaque habitant est soit un travailleur, soit un guerrier.**
 
-- **Habitation** : chaque bâtiment avec `population` (maisons +5, hôtel de ville +5 par
+- **Habitation** : chaque bâtiment avec `population` (maisons +10, hôtel de ville +5 par
   niveau) offre des places. Plus le village est grand, plus il peut loger d'habitants.
 - **Croissance** : tant qu'il reste des places libres, les habitants arrivent tout seuls
   (`resources.json` → `population.growthPerSecond`). Les guerriers occupent aussi une place.
@@ -76,7 +76,7 @@ Valeurs (coût, PV, taille, postes, production, temps de construction) dans
 | Bâtiment | Rôle | Postes |
 |---|---|---|
 | Hôtel de ville | Cœur du village, 3 niveaux, loge 5 habitants/niveau. Détruit = défaite | 3 |
-| Maison | +5 places d'habitation | — |
+| Maison | +10 places d'habitation | — |
 | Camp de bûcherons | Bois, doit être à ≤ 4 tuiles d'une forêt | 3 |
 | Carrière | Pierre, doit être à ≤ 4 tuiles d'une roche | 3 |
 | Mine | Minerai, doit être à ≤ 4 tuiles d'un minerai | 3 |

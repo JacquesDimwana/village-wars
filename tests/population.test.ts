@@ -24,7 +24,7 @@ describe('Housing & population', () => {
     const { state } = setup();
     expect(housingCap(state, PLAYER_ID)).toBe(5);
     addBuilding(state, 'house', PLAYER_ID, 5, 5, true);
-    expect(housingCap(state, PLAYER_ID)).toBe(10);
+    expect(housingCap(state, PLAYER_ID)).toBe(15);
   });
 
   it('inhabitants grow until housing is full', () => {

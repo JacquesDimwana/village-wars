@@ -9,7 +9,7 @@ export const RESOURCE_UI: { key: ResourceType; icon: string; label: string }[] =
 
 export const BUILDING_UI: Record<BuildingType, { icon: string; desc: string }> = {
   townHall: { icon: '🏰', desc: 'Cœur du village. Détruit = défaite.' },
-  house: { icon: '🏠', desc: '+5 places pour de nouveaux habitants.' },
+  house: { icon: '🏠', desc: '+10 places pour de nouveaux habitants.' },
   lumberCamp: { icon: '🪓', desc: 'Produit du bois. Près d’une forêt.' },
   quarry: { icon: '🪨', desc: 'Produit de la pierre. Près d’une roche.' },
   mine: { icon: '⛏️', desc: 'Produit du minerai. Près d’un filon.' },

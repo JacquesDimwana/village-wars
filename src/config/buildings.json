@@ -46,7 +46,7 @@
       "wood": 50
     },
     "buildTimeMs": 8000,
-    "population": 5,
+    "population": 10,
     "vision": 3
   },
   "lumberCamp": {
