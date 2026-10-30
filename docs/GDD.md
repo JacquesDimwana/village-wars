@@ -88,6 +88,8 @@ Valeurs (coût, PV, taille, postes, production, temps de construction) dans
 Construction : sur grille, tuiles libres et constructibles (`grass`/`sand`), à ≤
 `buildRadius` tuiles d'un bâtiment existant du joueur. Un bâtiment en construction a
 une barre de progression et ne produit rien.
+Amélioration de l'hôtel de ville : depuis sa fiche, instantanée, coût par niveau dans
+`buildings.json` (`levels`).
 
 ## 6. Unités
 
@@ -110,7 +112,8 @@ Déplacement : A* sur la grille (easystar), l'eau et les bâtiments bloquent.
 - Pincer : zoom (distance caméra 10 à 44)
 - Tap sur unité : sélection ; tap long + glisser : sélection en rectangle
 - Tap sur sol avec guerriers sélectionnés : déplacer / attaquer selon la cible
-- Bouton « Construire » : menu bâtiments → fantôme vert/rouge → tap pour poser
+- Bouton « Construire » : menu bâtiments → fantôme vert/rouge (glisser le fantôme ou taper
+  la carte pour le déplacer) → ✔ pour poser, ✕ pour annuler
 - Bouton « Armée » : forger des armes (armurerie), convertir / démobiliser (caserne)
 - Bouton « Diplomatie » : liste des 5 villages IA
 

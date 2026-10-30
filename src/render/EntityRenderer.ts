@@ -35,9 +35,9 @@ export class EntityRenderer {
   private buildings = new Map<string, BuildingView>();
   private units = new Map<string, UnitView>();
   private ringGeo = new THREE.RingGeometry(0.22, 0.3, 24).rotateX(-Math.PI / 2);
-  private barGeo = new THREE.PlaneGeometry(1, 0.08);
+  private barGeo = new THREE.PlaneGeometry(1, 0.13);
   /** Same plane with its origin on the left edge, so scaling x shrinks it from the right. */
-  private fillGeo = new THREE.PlaneGeometry(1, 0.08).translate(0.5, 0, 0);
+  private fillGeo = new THREE.PlaneGeometry(1, 0.13).translate(0.5, 0, 0);
 
   constructor(private assets: Assets) {}
 

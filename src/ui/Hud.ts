@@ -15,6 +15,8 @@ const REFRESH_MS = 200;
 
 export interface HudActions extends ArmyActions {
   build(type: BuildingType): void;
+  /** Next level for a building that has levels (town hall). */
+  upgrade(buildingId: string): void;
   focus(x: number, y: number): void;
   /** Centers the camera on the player's town hall. */
   home(): void;
@@ -92,7 +94,7 @@ export class Hud {
       ),
     };
     for (const sheet of Object.values(this.sheets)) sheet.onClose = () => this.openSheet(null);
-    this.selection = new SelectionCard(this.root, () => this.openSheet('army'));
+    this.selection = new SelectionCard(this.root, () => this.openSheet('army'), (id) => actions.upgrade(id));
 
     this.root.querySelectorAll<HTMLButtonElement>('button[data-sheet]').forEach((btn) => {
       btn.addEventListener('click', () => this.openSheet(btn.dataset.sheet as SheetName));

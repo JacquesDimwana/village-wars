@@ -3,17 +3,20 @@ import { BUILDINGS, GAME, UNITS, WEAPONS } from './core/config';
 import { PLAYER_ID } from './core/constants';
 import { bus } from './core/EventBus';
 import { addBuilding, createGameState, townHallOf } from './core/GameState';
-import type { GameState, UnitType, WeaponType } from './core/types';
+import type { BuildingType, GameState, UnitType, WeaponType } from './core/types';
 import { RtsCamera } from './input/RtsCamera';
 import { Assets } from './render/Assets';
 import { EntityRenderer } from './render/EntityRenderer';
+import { PlacementGhost } from './render/PlacementGhost';
 import { Terrain } from './render/Terrain';
 import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
+import { ConstructionSystem, canPlace, placeBuilding, upgradeBuilding } from './systems/ConstructionSystem';
 import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
 import { PopulationSystem, convertToWarrior, demobilize } from './systems/PopulationSystem';
 import { Hud, type HudActions } from './ui/Hud';
 import { Minimap } from './ui/Minimap';
+import { PlacementBar } from './ui/PlacementBar';
 import { WorldGen } from './world/WorldGen';
 
 /** Fixed logic tick so game rules don't depend on frame rate. */
@@ -34,6 +37,8 @@ export class Game {
   readonly terrain: Terrain;
   private hud: Hud;
   private minimap: Minimap;
+  private placement: PlacementGhost;
+  private placementBar: PlacementBar;
   private shadowDistance = 0;
   private sun: THREE.DirectionalLight;
   private timer = new THREE.Timer();
@@ -43,6 +48,7 @@ export class Game {
   private economy = new EconomySystem(bus);
   private armory = new ArmorySystem(bus);
   private fog = new FogSystem();
+  private construction = new ConstructionSystem(bus);
 
   constructor(
     container: HTMLElement,
@@ -75,7 +81,11 @@ export class Game {
     this.cam = new RtsCamera(this.renderer.domElement, GAME.camera);
     this.terrain = new Terrain(this.world, assets, GAME.chunkSize);
     this.entities = new EntityRenderer(assets);
-    this.scene.add(this.terrain.root, this.entities.root);
+    this.placement = new PlacementGhost(assets, this.cam, this.renderer.domElement, (type, tx, ty) =>
+      canPlace(this.state, this.world, type, tx, ty, PLAYER_ID),
+    );
+    this.placementBar = new PlacementBar(() => this.confirmPlacement(), () => this.stopPlacement());
+    this.scene.add(this.terrain.root, this.entities.root, this.placement.root);
 
     const hall = townHallOf(this.state, PLAYER_ID);
     const half = BUILDINGS.townHall.size / 2;
@@ -115,6 +125,7 @@ export class Game {
     this.sun.target.position.copy(t);
     this.followZoom();
     this.entities.sync(this.state, dt);
+    this.updatePlacement();
     this.hud.update();
     this.minimap.update(performance.now());
     this.renderer.render(this.scene, this.cam.camera);
@@ -128,7 +139,7 @@ export class Game {
     this.economy.update(this.state, dt);
     this.armory.update(this.state, dt);
     this.fog.update(this.state, dt);
-    // TODO(agent A) construction.update(this.state, dt)
+    this.construction.update(this.state, dt);
     // TODO(agent B) movement
     // TODO(agent C) combat
     // TODO(agent D) ai
@@ -199,13 +210,47 @@ export class Game {
         const last = Object.values(this.state.units).filter((u) => u.ownerId === PLAYER_ID && u.type === unit).pop();
         if (last && demobilize(this.state, last.id, bus)) notify('Le guerrier retourne au travail');
       },
-      build: (type) => notify(`${BUILDINGS[type].name} : placement sur la carte bientôt disponible`),
+      build: (type) => this.startPlacement(type),
+      upgrade: (buildingId) => {
+        const res = upgradeBuilding(this.state, buildingId, bus);
+        notify(res.ok ? `${BUILDINGS[this.state.buildings[buildingId].type].name} amélioré !` : res.reason);
+      },
       focus: (x, y) => this.cam.lookAt(x, y + 1),
       home: () => this.cam.lookAt(home.x, home.y + 1),
     };
   }
 
+  /** Placement mode: the build panel closes and a ghost of the building follows the player's finger. */
+  private startPlacement(type: BuildingType): void {
+    this.hud.openSheet(null);
+    bus.emit('building:selected', { buildingId: null });
+    this.placement.start(type, this.cam.target.x, this.cam.target.z);
+    this.placementBar.show(type);
+  }
+
+  private stopPlacement(): void {
+    this.placement.stop();
+    this.placementBar.hide();
+  }
+
+  private confirmPlacement(): void {
+    const { type, tx, ty } = this.placement;
+    if (!type) return;
+    const res = placeBuilding(this.state, this.world, type, tx, ty, PLAYER_ID, bus);
+    if (!res.ok) return bus.emit('notify', { message: res.reason });
+    bus.emit('notify', { message: `${BUILDINGS[type].name} : construction lancée` });
+    this.stopPlacement();
+  }
+
+  private updatePlacement(): void {
+    const res = this.placement.update();
+    if (res && this.placement.type) {
+      this.placementBar.update(this.placement.type, this.state.villages[PLAYER_ID], res.ok ? null : res.reason);
+    }
+  }
+
   private handleTap(ndc: THREE.Vector2): void {
+    if (this.placement.active) return this.placement.tapAt(ndc);
     const hit = this.cam.raycast(ndc, this.entities.buildingObjects)[0];
     if (hit) {
       let o: THREE.Object3D | null = hit.object;
