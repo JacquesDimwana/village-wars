@@ -16,11 +16,12 @@
     "@capacitor/android": "^8.6.0",
     "@capacitor/core": "^8.6.0",
     "easystarjs": "^0.4.4",
-    "phaser": "^4.2.1",
-    "simplex-noise": "^4.0.3"
+    "simplex-noise": "^4.0.3",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.6.0",
+    "@types/three": "^0.186.0",
     "typescript": "^5.9.3",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"

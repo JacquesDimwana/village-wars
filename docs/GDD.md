@@ -5,7 +5,7 @@
 
 ## 1. Pitch
 
-RTS mobile en vue de dessus 2D. Le joueur démarre avec un hôtel de ville sur une map
+RTS mobile en 3D low-poly, caméra fixe inclinée (style Clash of Clans). Le joueur démarre avec un hôtel de ville sur une map
 pseudo-infinie générée procéduralement. 5 villages IA démarrent loin de lui. Il faut
 loger des habitants, les faire travailler ou les armer, nouer des alliances, et détruire tous les
 hôtels de ville ennemis avant que le sien tombe.
@@ -17,7 +17,7 @@ hôtels de ville ennemis avant que le sien tombe.
 
 ## 2. Monde
 
-- Grille de tuiles de 32 px. Map découpée en **chunks de 16×16 tuiles**, générés à la
+- Grille de tuiles (1 tuile = 1 unité 3D). Map découpée en **chunks de 32×32 tuiles**, générés à la
   volée autour de la caméra à partir d'une **seed** (même seed = même map).
 - Terrain (bruit simplex) : `water` (infranchissable), `sand`, `grass`, `forest`
   (bois), `rock` (pierre), `ore` (minerai de fer, rare, dans les zones rocheuses).
@@ -90,7 +90,7 @@ Les habitants civils ne sont pas affichés sur la map (ce sont des chiffres dans
 | Unité | Arme | Rôle | Avantage |
 |---|---|---|---|
 | Chevalier | Épée | Mêlée, beaucoup de PV, rapide, ×1.5 dégâts aux bâtiments | ×1.5 dégâts contre les archers au contact |
-| Archer | Arc | Distance (portée 5), fragile, arme bon marché | Frappe les chevaliers avant qu'ils arrivent |
+| Archer | Arc (modèle 3D : arbalète) | Distance (portée 5), fragile, arme bon marché | Frappe les chevaliers avant qu'ils arrivent |
 
 Stats dans `src/config/units.json`. Multiplicateur de contre : ×1.5.
 Combat : automatique. Un guerrier attaque l'ennemi le plus proche dans son `aggroRange`.
@@ -100,7 +100,7 @@ Déplacement : A* sur la grille (easystar), l'eau et les bâtiments bloquent.
 ## 7. Contrôles (tactile)
 
 - Glisser 1 doigt sur le vide : déplacer la caméra
-- Pincer : zoom (0.4× à 2×)
+- Pincer : zoom (distance caméra 10 à 36)
 - Tap sur unité : sélection ; tap long + glisser : sélection en rectangle
 - Tap sur sol avec guerriers sélectionnés : déplacer / attaquer selon la cible
 - Bouton « Construire » : menu bâtiments → fantôme vert/rouge → tap pour poser

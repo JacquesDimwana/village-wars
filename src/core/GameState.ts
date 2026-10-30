@@ -4,7 +4,8 @@ import type { Building, BuildingType, GameState, Resources, Unit, UnitType, Vill
 import type { WorldGen } from '../world/WorldGen';
 
 const AI_NAMES = ['Brumeval', 'Rocheclaire', 'Fortbois', 'Valdor', 'Ombrecombe', 'Hautelande'];
-const AI_COLORS = [0xe74c3c, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xf1c40f, 0xecf0f1];
+/** Must match render/teams.ts (KayKit team colors + tints). */
+const AI_COLORS = [0xd94b3d, 0x4caf50, 0xf2c230, 0x9b59b6, 0x1abc9c];
 export const PLAYER_COLOR = 0x3498db;
 
 const emptyResources = (): Resources => ({ wood: 0, stone: 0, ore: 0, iron: 0 });

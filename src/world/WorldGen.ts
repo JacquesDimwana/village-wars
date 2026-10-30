@@ -15,7 +15,7 @@ export interface SpawnPoint extends TilePos {
 
 /**
  * Deterministic, infinite terrain. Same seed → same world.
- * Pure TypeScript (no Phaser) so it can be unit-tested.
+ * Pure TypeScript (no Three.js) so it can be unit-tested.
  */
 export class WorldGen {
   readonly seed: number;

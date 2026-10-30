@@ -1,6 +1,6 @@
 # Village Wars
 
-RTS mobile 2D : agrandis ton village, fais travailler ou arme tes habitants, allie-toi ou
+RTS mobile 3D low-poly (style Clash of Clans) : agrandis ton village, fais travailler ou arme tes habitants, allie-toi ou
 écrase les 5 villages voisins.
 
 - **Spec** : [`docs/GDD.md`](docs/GDD.md)
@@ -9,7 +9,7 @@ RTS mobile 2D : agrandis ton village, fais travailler ou arme tes habitants, all
 
 ## Stack
 
-Phaser 4 · TypeScript · Vite · Capacitor (Android) · simplex-noise · easystar.js · Vitest
+Three.js · TypeScript · Vite · Capacitor (Android) · simplex-noise · easystar.js · Vitest
 
 ## Lancer
 
@@ -30,8 +30,13 @@ npm run android      # build + sync + ouvre Android Studio → Run / Build APK
 ## Architecture
 
 La logique (`src/systems`, `src/core`, `src/world/WorldGen.ts`) est en TypeScript pur,
-testée avec Vitest. Phaser ne fait que l'affichage (`src/scenes`, `src/entities`).
+testée avec Vitest. Three.js ne fait que l'affichage (`src/render`), le HUD est en HTML (`src/ui`).
 Tout l'équilibrage est dans `src/config/*.json`.
+
+## Crédits
+
+Modèles 3D : [KayKit](https://kaylousberg.com) par Kay Lousberg — Medieval Hexagon Pack
+et Adventurers Character Pack (CC0).
 
 ## Workflow IA
 

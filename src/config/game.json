@@ -1,7 +1,6 @@
 {
   "seed": 1337,
-  "chunkSize": 16,
-  "chunkLoadRadius": 2,
+  "chunkSize": 32,
   "aiCount": 5,
   "aiSpawnRadius": 70,
   "aiSpawnJitter": 12,
@@ -14,9 +13,12 @@
     "iron": 0
   },
   "camera": {
-    "minZoom": 0.4,
-    "maxZoom": 2,
-    "initialZoom": 1
+    "minDistance": 10,
+    "maxDistance": 36,
+    "initialDistance": 20,
+    "pitchDeg": 52,
+    "yawDeg": 45,
+    "fovDeg": 32
   },
   "startingInhabitants": 3,
   "startingWeapons": {

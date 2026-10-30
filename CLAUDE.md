@@ -4,7 +4,8 @@ Contexte permanent pour tout agent IA qui travaille sur ce repo. À lire avant t
 
 ## Le projet
 
-RTS mobile 2D (Phaser 4 + TypeScript + Vite, packagé Android avec Capacitor).
+RTS mobile en 3D low-poly, vue fixe style Clash of Clans (Three.js + TypeScript + Vite,
+packagé Android avec Capacitor). Modèles KayKit (CC0) dans `public/models/`.
 **La spec est `docs/GDD.md`. Elle fait autorité.** Le planning et le découpage par agent
 sont dans `docs/PLAN.md`. Délai total : 48 h — privilégie toujours ce qui marche vite et
 simple à ce qui est élégant.
@@ -26,28 +27,38 @@ src/
   config/      Données de jeu en JSON (bâtiments, unités, ressources, IA, réglages).
                AUCUNE valeur d'équilibrage en dur dans le code : tout passe par ici.
   core/        Types, état de jeu (GameState), EventBus, RNG à seed.
-  world/       Génération procédurale (WorldGen) et chargement des chunks (ChunkManager).
-  systems/     Logique pure, sans Phaser : Economy, Construction, Combat, AI, Diplomacy,
-               Fog. Chaque système expose update(state, dtMs).
-  entities/    Rendu Phaser des bâtiments et unités (lit l'état, ne contient pas de règles).
-  scenes/      BootScene (chargement), GameScene (monde), UIScene (HUD superposé).
-  input/       Caméra tactile, sélection, placement.
+  world/       Génération procédurale du terrain (WorldGen) — logique pure.
+  systems/     Logique pure, sans Three.js : Population, Economy, Armory, puis
+               Construction, Movement, Combat, AI, Diplomacy. Chaque système expose
+               update(state, dtMs).
+  render/      Three.js uniquement : Assets (chargement glTF), Terrain (chunks
+               instanciés), EntityRenderer (bâtiments + guerriers animés), teams.
+  input/       RtsCamera : caméra fixe inclinée, pan 1 doigt, pinch, tap → raycast.
+  ui/          HUD en HTML/CSS par-dessus le canvas (Hud.ts, hud.css).
+  Game.ts      Boucle : tick logique fixe (100 ms) + rendu à chaque frame.
 tests/         Tests vitest des systèmes (logique pure).
+public/models/ Modèles KayKit (glTF/glb, CC0).
 ```
 
 ### Règles d'architecture
 
-1. **Logique ≠ rendu.** Les règles du jeu vivent dans `systems/` et `core/`, en
-   TypeScript pur, sans import de Phaser → testables avec vitest. Les scènes et
-   entités lisent `GameState` et affichent.
-2. **Un seul état source** : `GameState`. Pas d'état de jeu caché dans les sprites.
-3. **Communication par événements** via `EventBus` (`core/EventBus.ts`) entre systèmes
-   et UI (ex. `resources:changed`, `building:placed`, `village:destroyed`).
-4. **Aléatoire déterministe** : utiliser `core/rng.ts` (seedé), jamais `Math.random()`
-   dans la logique.
-5. **Coordonnées** : la logique travaille en tuiles (`tx`, `ty`), le rendu en pixels.
-   Conversion via `TILE_SIZE` dans `core/constants.ts`.
+1. **Logique ≠ rendu.** Les règles vivent dans `systems/`, `core/`, `world/` en
+   TypeScript pur, sans import de Three.js → testables avec vitest. `render/` et `ui/`
+   lisent `GameState` et affichent, sans règles du jeu.
+2. **Un seul état source** : `GameState`. Pas d'état de jeu caché dans les objets 3D.
+3. **Communication par événements** via `EventBus` (`core/EventBus.ts`).
+4. **Aléatoire déterministe** : `core/rng.ts` (seedé), jamais `Math.random()` dans la logique.
+5. **Coordonnées** : 1 tuile = 1 unité Three.js. Tuile (tx, ty) → monde (x = tx, z = ty).
+   Le sol est à y = 0.
 6. Le joueur est le village d'id `player`. Les IA ont les ids `ai-1` … `ai-5`.
+7. **Performance mobile** : tout ce qui est nombreux (sol, arbres, rochers) passe par
+   `InstancedMesh`. Les arbres ne projettent pas d'ombre. Vérifier
+   `__vw.renderer.info.render` (draw calls < 300, triangles < 800k au dézoom max).
+
+### Debug
+
+Dans la console du navigateur : `__vw` est l'instance de `Game`.
+`__vw.debugDemo()` ajoute des bâtiments et des guerriers au village du joueur.
 
 ## Conventions
 

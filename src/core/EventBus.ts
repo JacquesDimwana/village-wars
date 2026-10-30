@@ -1,4 +1,4 @@
-import type { BuildingType, Resources, WeaponType } from './types';
+import type { BuildingType, Resources, TileType, WeaponType } from './types';
 
 /** All game events and their payloads. Add new events here so they stay typed. */
 export interface GameEvents {
@@ -10,6 +10,7 @@ export interface GameEvents {
   'building:destroyed': { buildingId: string };
   'village:destroyed': { villageId: string };
   'game:over': { status: 'won' | 'lost' };
+  'tile:tapped': { tx: number; ty: number; tile: TileType };
   notify: { message: string };
 }
 

@@ -1,18 +1,25 @@
-import Phaser from 'phaser';
-import { BootScene } from './scenes/BootScene';
-import { GameScene } from './scenes/GameScene';
-import { UIScene } from './scenes/UIScene';
+import { Game } from './Game';
+import { Assets } from './render/Assets';
+import './ui/hud.css';
 
-new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  backgroundColor: '#1b2a1b',
-  scale: {
-    mode: Phaser.Scale.RESIZE,
-    width: window.innerWidth,
-    height: window.innerHeight,
-  },
-  input: { activePointers: 3 },
-  render: { antialias: true },
-  scene: [BootScene, GameScene, UIScene],
+async function boot(): Promise<void> {
+  const loading = document.createElement('div');
+  loading.className = 'loading';
+  loading.innerHTML = '<h1>Village Wars</h1><div class="bar"><div></div></div><small>Chargement…</small>';
+  document.body.appendChild(loading);
+  const fill = loading.querySelector<HTMLElement>('.bar div')!;
+
+  const assets = new Assets();
+  await assets.loadAll((r) => (fill.style.width = `${Math.round(r * 100)}%`));
+
+  const game = new Game(document.getElementById('game')!, assets);
+  // Debug handle for the browser console and automated tests.
+  (window as unknown as { __vw: Game }).__vw = game;
+  game.start();
+  loading.remove();
+}
+
+boot().catch((err: unknown) => {
+  console.error(err);
+  document.body.insertAdjacentHTML('beforeend', `<pre style="color:#fff;padding:16px">Erreur de chargement : ${String(err)}</pre>`);
 });
