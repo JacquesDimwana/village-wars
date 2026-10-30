@@ -14,11 +14,18 @@
   },
   "camera": {
     "minDistance": 10,
-    "maxDistance": 36,
+    "maxDistance": 44,
     "initialDistance": 20,
     "pitchDeg": 52,
     "yawDeg": 45,
     "fovDeg": 32
+  },
+  "exploration": {
+    "growthPerSecond": 0.25,
+    "maxRadius": 22
+  },
+  "minimap": {
+    "halfSize": 96
   },
   "startingInhabitants": 3,
   "startingWeapons": {

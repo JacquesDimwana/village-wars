@@ -26,6 +26,13 @@ hôtels de ville ennemis avant que le sien tombe.
   constructible. Une zone de 5×5 autour de chaque hôtel de ville est forcée en `grass`.
 - **Brouillard de guerre** : seules les tuiles dans le rayon de vision des unités et
   bâtiments du joueur sont visibles ; les tuiles déjà vues restent grisées.
+- **Exploration** : au départ, la carte est inconnue (grisée sur la mini-carte). Chaque
+  bâtiment du joueur découvre les tuiles dans son rayon `vision`. Les bâtiments de
+  production (hôtel de ville, camp de bûcherons, carrière, mine) envoient leurs
+  travailleurs chercher des ressources de plus en plus loin : leur rayon d'exploration
+  grandit de `exploration.growthPerSecond` × postes occupés / postes totaux, jusqu'à
+  `exploration.maxRadius` (`game.json`). Les guerriers découvrent les tuiles dans leur
+  rayon `vision`. Une tuile découverte le reste.
 
 ## 3. Ressources
 
@@ -100,7 +107,7 @@ Déplacement : A* sur la grille (easystar), l'eau et les bâtiments bloquent.
 ## 7. Contrôles (tactile)
 
 - Glisser 1 doigt sur le vide : déplacer la caméra
-- Pincer : zoom (distance caméra 10 à 36)
+- Pincer : zoom (distance caméra 10 à 44)
 - Tap sur unité : sélection ; tap long + glisser : sélection en rectangle
 - Tap sur sol avec guerriers sélectionnés : déplacer / attaquer selon la cible
 - Bouton « Construire » : menu bâtiments → fantôme vert/rouge → tap pour poser
@@ -153,10 +160,27 @@ restent, une dernière alerte rompt les alliances (« Il ne peut en rester qu'un
 
 ## 11. Interface
 
-- Barre du haut : bois / pierre / minerai / fer, puis travailleurs / guerriers / places / épées / arcs
-- Bas à gauche : boutons Construire, Armée, Diplomatie
-- Bas à droite : panneau contextuel (sélection)
-- Mini-carte en haut à droite (si le temps le permet)
+Style inspiré de Clash of Clans : panneaux crème bordés de bois, gros boutons ronds,
+textes courts. Le jeu reste jouable pendant qu'un panneau est ouvert.
+
+- Haut gauche : blason du village + barre de population en 3 segments
+  (travailleurs / guerriers / places libres) — rend visible le dilemme du §4.
+- Haut centre : bois / pierre / minerai / fer avec production par seconde.
+- Bas gauche : gros bouton rond **Armée** (badge = armes en stock) et bouton
+  **Diplomatie**. Bas droite : gros bouton **Construire**.
+- Chaque bouton ouvre un panneau qui glisse depuis le bas (fermeture : ✕) :
+  - **Construire** : cartes des bâtiments (icône, rôle, coût en rouge si insuffisant).
+  - **Armée** : forge (épée / arc, file d'attente avec progression) et caserne
+    (former / démobiliser chevaliers et archers). Une action impossible est grisée avec
+    sa raison (« Construis une armurerie », « Pas d'épée en stock »…).
+  - **Diplomatie** : les 5 villages IA ; nom et personnalité visibles une fois leur
+    hôtel de ville exploré, bouton « Voir » qui centre la caméra dessus.
+- Tap sur un bâtiment : fiche en bas au centre (propriétaire, PV, construction,
+  travailleurs, production). Tap sur le sol : la fiche se ferme.
+- Mini-carte en haut à droite : zone de `minimap.halfSize` tuiles autour de l'hôtel de
+  ville du joueur (couvre les 5 villages IA). Tuiles inconnues en gris, tuiles explorées
+  avec la couleur du terrain, bâtiments explorés aux couleurs des villages, guerriers du
+  joueur, cercle blanc = zone vue par la caméra. Tap sur la mini-carte : la caméra y va.
 - Notifications : « Village X vous attaque ! », « Alliance acceptée »
 
 ## 12. Hors périmètre
@@ -165,4 +189,4 @@ Multijoueur en ligne, arbre technologique, campagne, plusieurs maps, monétisati
 
 ## 13. Bonus si temps restant
 
-Sons (Kenney audio), animations de combat, tutoriel en 4 étapes, mini-carte, vitesse ×2.
+Sons (Kenney audio), animations de combat, tutoriel en 4 étapes, vitesse ×2.

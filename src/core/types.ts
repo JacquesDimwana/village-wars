@@ -82,5 +82,16 @@ export interface GameState {
   nextId: number;
   /** Remaining resource amount for tiles that have been harvested. Key: "tx,ty". */
   depletion: Record<string, number>;
+  /** Tiles explored by the player (minimap / fog of war). */
+  fog: FogState;
   status: 'playing' | 'won' | 'lost';
+}
+
+export interface FogState {
+  /** One bitmap per chunk (1 = explored), row-major. Key: "cx,cy". */
+  explored: Record<string, Uint8Array>;
+  /** Current exploration radius per player building id (grows while its workers forage). */
+  radius: Record<string, number>;
+  /** Incremented whenever new tiles get explored, so renderers can skip redraws. */
+  version: number;
 }

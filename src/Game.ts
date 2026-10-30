@@ -1,22 +1,28 @@
 import * as THREE from 'three';
-import { BUILDINGS, GAME } from './core/config';
+import { BUILDINGS, GAME, UNITS, WEAPONS } from './core/config';
 import { PLAYER_ID } from './core/constants';
 import { bus } from './core/EventBus';
 import { addBuilding, createGameState, townHallOf } from './core/GameState';
-import type { GameState } from './core/types';
+import type { GameState, UnitType, WeaponType } from './core/types';
 import { RtsCamera } from './input/RtsCamera';
 import { Assets } from './render/Assets';
 import { EntityRenderer } from './render/EntityRenderer';
 import { Terrain } from './render/Terrain';
-import { ArmorySystem } from './systems/ArmorySystem';
+import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
 import { EconomySystem } from './systems/EconomySystem';
-import { PopulationSystem, convertToWarrior } from './systems/PopulationSystem';
-import { Hud } from './ui/Hud';
+import { FogSystem } from './systems/FogSystem';
+import { PopulationSystem, convertToWarrior, demobilize } from './systems/PopulationSystem';
+import { Hud, type HudActions } from './ui/Hud';
+import { Minimap } from './ui/Minimap';
 import { WorldGen } from './world/WorldGen';
 
 /** Fixed logic tick so game rules don't depend on frame rate. */
 const TICK_MS = 100;
 const SKY = 0x9fd4f0;
+/** Distance fog and shadow area follow the zoom (values tuned at distance 20). */
+const FOG_NEAR_OFFSET = 15;
+const FOG_FAR_OFFSET = 55;
+const SHADOW_EXTENT_PER_DISTANCE = 1.4;
 
 export class Game {
   readonly world = new WorldGen(GAME.seed);
@@ -27,6 +33,8 @@ export class Game {
   readonly entities: EntityRenderer;
   readonly terrain: Terrain;
   private hud: Hud;
+  private minimap: Minimap;
+  private shadowDistance = 0;
   private sun: THREE.DirectionalLight;
   private timer = new THREE.Timer();
   private accumulator = 0;
@@ -34,6 +42,7 @@ export class Game {
   private population = new PopulationSystem(bus);
   private economy = new EconomySystem(bus);
   private armory = new ArmorySystem(bus);
+  private fog = new FogSystem();
 
   constructor(
     container: HTMLElement,
@@ -69,13 +78,20 @@ export class Game {
     this.scene.add(this.terrain.root, this.entities.root);
 
     const hall = townHallOf(this.state, PLAYER_ID);
-    if (hall) {
-      const half = BUILDINGS.townHall.size / 2;
-      this.cam.lookAt(hall.tx + half, hall.ty + half + 1);
-    }
+    const half = BUILDINGS.townHall.size / 2;
+    const home = hall ? { x: hall.tx + half, y: hall.ty + half } : { x: 0, y: 0 };
+    this.cam.lookAt(home.x, home.y + 1);
     this.cam.onTap = (ndc) => this.handleTap(ndc);
 
-    this.hud = new Hud(document.body, () => this.state, bus);
+    this.hud = new Hud(document.body, () => this.state, bus, this.hudActions(home));
+    this.minimap = new Minimap(
+      document.body,
+      home,
+      () => this.state,
+      (tx, ty) => this.world.getTile(tx, ty),
+      () => ({ x: this.cam.target.x, y: this.cam.target.z, radius: this.cam.distance * 0.6 }),
+      (x, y) => this.cam.lookAt(x, y),
+    );
     window.addEventListener('resize', () => this.resize());
     this.resize();
   }
@@ -97,8 +113,10 @@ export class Game {
     this.terrain.update(t, this.cam.viewRadius);
     this.sun.position.set(t.x - 18, 30, t.z + 10);
     this.sun.target.position.copy(t);
+    this.followZoom();
     this.entities.sync(this.state, dt);
     this.hud.update();
+    this.minimap.update(performance.now());
     this.renderer.render(this.scene, this.cam.camera);
   }
 
@@ -109,11 +127,27 @@ export class Game {
     this.population.update(this.state, dt);
     this.economy.update(this.state, dt);
     this.armory.update(this.state, dt);
+    this.fog.update(this.state, dt);
     // TODO(agent A) construction.update(this.state, dt)
     // TODO(agent B) movement
     // TODO(agent C) combat
     // TODO(agent D) ai
-    // TODO(agent E) diplomacy / fog
+    // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
+  }
+
+  /** Keeps distance fog and the shadow area proportional to the zoom so dezooming stays readable. */
+  private followZoom(): void {
+    const d = this.cam.distance;
+    if (d === this.shadowDistance) return;
+    this.shadowDistance = d;
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = d + FOG_NEAR_OFFSET;
+    fog.far = d + FOG_FAR_OFFSET;
+    const e = d * SHADOW_EXTENT_PER_DISTANCE;
+    const s = this.sun.shadow.camera;
+    s.left = s.bottom = -e;
+    s.right = s.top = e;
+    s.updateProjectionMatrix();
   }
 
   /**
@@ -142,11 +176,33 @@ export class Game {
     v.weapons = { sword: 4, bow: 3 };
     for (let i = 0; i < 4; i++) convertToWarrior(this.state, PLAYER_ID, 'knight', bus);
     for (let i = 0; i < 3; i++) convertToWarrior(this.state, PLAYER_ID, 'archer', bus);
-    // Spread them out a bit in front of the barracks.
-    Object.values(this.state.units).forEach((u, i) => {
-      u.x += (i % 4) * 0.9 - 1.5;
-      u.y += Math.floor(i / 4) * 0.9 + 0.3;
-    });
+  }
+
+  /** What the player can do from the HUD. Rules stay in the systems. */
+  private hudActions(home: { x: number; y: number }): HudActions {
+    const notify = (message: string): void => bus.emit('notify', { message });
+    return {
+      forge: (weapon: WeaponType) => {
+        if (queueWeapon(this.state, PLAYER_ID, weapon)) notify(`${WEAPONS[weapon].name} : en cours de forge`);
+        else notify('Impossible de forger : armurerie ou ressources manquantes');
+      },
+      train: (unit: UnitType) => {
+        const messages = {
+          ok: `${UNITS[unit].name.replace(/ \(.*\)/, '')} formé !`,
+          'no-barracks': 'Construis d’abord une caserne',
+          'no-civilian': 'Aucun habitant disponible',
+          'no-weapon': `Pas de ${WEAPONS[UNITS[unit].weapon].name.toLowerCase()} en stock`,
+        };
+        notify(messages[convertToWarrior(this.state, PLAYER_ID, unit, bus)]);
+      },
+      demobilize: (unit: UnitType) => {
+        const last = Object.values(this.state.units).filter((u) => u.ownerId === PLAYER_ID && u.type === unit).pop();
+        if (last && demobilize(this.state, last.id, bus)) notify('Le guerrier retourne au travail');
+      },
+      build: (type) => notify(`${BUILDINGS[type].name} : placement sur la carte bientôt disponible`),
+      focus: (x, y) => this.cam.lookAt(x, y + 1),
+      home: () => this.cam.lookAt(home.x, home.y + 1),
+    };
   }
 
   private handleTap(ndc: THREE.Vector2): void {
@@ -156,8 +212,7 @@ export class Game {
       while (o && !o.userData.buildingId) o = o.parent;
       const b = o ? this.state.buildings[o.userData.buildingId as string] : undefined;
       if (b) {
-        const owner = this.state.villages[b.ownerId];
-        bus.emit('notify', { message: `${BUILDINGS[b.type].name} — ${owner.name}` });
+        bus.emit('building:selected', { buildingId: b.id });
         return;
       }
     }
@@ -165,6 +220,7 @@ export class Game {
     if (p) {
       const tx = Math.floor(p.x);
       const ty = Math.floor(p.z);
+      bus.emit('building:selected', { buildingId: null });
       bus.emit('tile:tapped', { tx, ty, tile: this.world.getTile(tx, ty) });
     }
   }

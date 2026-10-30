@@ -79,10 +79,24 @@ export function convertToWarrior(
 
   village.inhabitants -= 1;
   village.weapons[weapon] -= 1;
-  const size = BUILDINGS[barracks.type].size;
-  addUnit(state, type, villageId, barracks.tx + size / 2 - 0.5, barracks.ty + size);
+  const slot = formationSlot(barracks, warriors(state, villageId).length);
+  addUnit(state, type, villageId, slot.x, slot.y);
   bus?.emit('population:changed', { villageId });
   return 'ok';
+}
+
+const FORMATION_COLUMNS = 5;
+const FORMATION_SPACING = 0.9;
+
+/** Idle warriors line up in rows in front of the barracks (visible "army camp"). */
+export function formationSlot(barracks: Building, index: number): { x: number; y: number } {
+  const size = BUILDINGS[barracks.type].size;
+  const col = index % FORMATION_COLUMNS;
+  const row = Math.floor(index / FORMATION_COLUMNS);
+  return {
+    x: barracks.tx + size / 2 - 0.5 + (col - (FORMATION_COLUMNS - 1) / 2) * FORMATION_SPACING,
+    y: barracks.ty + size + 0.3 + row * FORMATION_SPACING,
+  };
 }
 
 /** Sends a warrior back to work. Its weapon is returned to stock. */

@@ -35,6 +35,42 @@ export function productionRates(state: GameState, villageId: string): Record<Res
 }
 
 /**
+ * Net income per second, smelters included (iron gained, ore consumed).
+ * For display and planning only: the economy itself uses productionRates + smelt().
+ */
+export function incomeRates(state: GameState, villageId: string): Record<ResourceType, number> {
+  const rates = productionRates(state, villageId);
+  const assignment = assignWorkers(state, villageId);
+  const speed = Object.values(state.buildings)
+    .filter((b) => b.ownerId === villageId && b.buildProgress >= 1 && BUILDINGS[b.type].smelts)
+    .reduce((sum, b) => sum + staffing(b, assignment), 0);
+  const { orePerIron, intervalMs } = RESOURCES.smelter;
+  const iron = Math.min(speed / (intervalMs / 1000), (rates.ore + state.villages[villageId].resources.ore) / orePerIron);
+  rates.iron += iron;
+  rates.ore -= iron * orePerIron;
+  return rates;
+}
+
+/**
+ * Seconds until the village can pay `cost` at the given income,
+ * or the first missing resource that isn't being produced at all.
+ */
+export function timeToAfford(
+  village: Village,
+  cost: Cost,
+  rates: Record<ResourceType, number>,
+): number | { missing: ResourceType } {
+  let wait = 0;
+  for (const r of RESOURCE_TYPES) {
+    const lack = (cost[r] ?? 0) - village.resources[r];
+    if (lack <= 0) continue;
+    if (rates[r] <= 0) return { missing: r };
+    wait = Math.max(wait, lack / rates[r]);
+  }
+  return wait;
+}
+
+/**
  * Production from staffed buildings + smelter conversion.
  * Output scales with workers: fewer civilians (converted into warriors) = less production.
  * Resources are whole numbers; fractions accumulate in `village.production`.

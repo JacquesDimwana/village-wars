@@ -1,48 +1,77 @@
 import { PLAYER_ID } from '../core/constants';
 import type { EventBus } from '../core/EventBus';
-import type { GameState, ResourceType } from '../core/types';
-import { productionRates } from '../systems/EconomySystem';
+import type { BuildingType, GameState } from '../core/types';
+import { incomeRates } from '../systems/EconomySystem';
 import { civilians, housingCap, warriors } from '../systems/PopulationSystem';
+import { ArmyPanel, type ArmyActions } from './ArmyPanel';
+import { BuildPanel } from './BuildPanel';
+import { DiplomacyPanel } from './DiplomacyPanel';
+import { RESOURCE_UI, fmt, hexColor } from './icons';
+import { SelectionCard } from './SelectionCard';
+import { Sheet, setText } from './Sheet';
 import './hud.css';
 
-const RESOURCES: { key: ResourceType; icon: string; label: string }[] = [
-  { key: 'wood', icon: '🪵', label: 'Bois' },
-  { key: 'stone', icon: '🪨', label: 'Pierre' },
-  { key: 'ore', icon: '⛏️', label: 'Minerai' },
-  { key: 'iron', icon: '⚙️', label: 'Fer' },
-];
+const REFRESH_MS = 200;
 
-/** HTML overlay on top of the 3D canvas. Reads GameState; actions go through the EventBus. */
+export interface HudActions extends ArmyActions {
+  build(type: BuildingType): void;
+  focus(x: number, y: number): void;
+  /** Centers the camera on the player's town hall. */
+  home(): void;
+}
+
+type SheetName = 'build' | 'army' | 'diplomacy';
+
+/**
+ * HTML overlay on top of the 3D canvas (Clash-of-Clans-like layout).
+ * Reads GameState; player actions go through `HudActions` (implemented by Game with the systems).
+ */
 export class Hud {
   private root: HTMLElement;
   private values = new Map<string, HTMLElement>();
   private toastEl: HTMLElement;
   private toastTimer = 0;
+  private sheets: Record<SheetName, Sheet>;
+  private selection: SelectionCard;
+  private lastRefresh = 0;
 
   constructor(
     parent: HTMLElement,
     private getState: () => GameState,
     bus: EventBus,
+    actions: HudActions,
   ) {
+    const player = getState().villages[PLAYER_ID];
     this.root = document.createElement('div');
     this.root.className = 'hud';
     this.root.innerHTML = `
-      <div class="hud-top">
-        <div class="hud-row">
-          ${RESOURCES.map((r) => `<div class="chip" title="${r.label}"><span>${r.icon}</span><b data-k="${r.key}">0</b><small data-k="${r.key}-rate"></small></div>`).join('')}
+      <button class="village-card" data-act="home" title="Revenir au village">
+        <span class="crest" style="--c:${hexColor(player.color)}">🏰</span>
+        <div class="village-info">
+          <b>${player.name}</b>
+          <div class="pop-bar" title="Travailleurs / guerriers / places libres"><i class="workers"></i><i class="warriors"></i></div>
+          <div class="pop-legend">
+            <span title="Travailleurs">👷<b data-k="workers">0</b></span>
+            <span title="Guerriers">🛡️<b data-k="warriors">0</b></span>
+            <span title="Places d'habitation">🏠<b data-k="housing">0</b></span>
+          </div>
         </div>
-        <div class="hud-row">
-          <div class="chip" title="Habitants au travail">👷<b data-k="workers">0</b></div>
-          <div class="chip" title="Guerriers">🛡️<b data-k="warriors">0</b></div>
-          <div class="chip" title="Places d'habitation">🏠<b data-k="housing">0</b></div>
-          <div class="chip" title="Épées en stock">🗡️<b data-k="sword">0</b></div>
-          <div class="chip" title="Arcs en stock">🏹<b data-k="bow">0</b></div>
-        </div>
+      </button>
+      <button class="round small home-btn" data-act="home" title="Revenir au village"><span class="glyph">🏰</span></button>
+      <div class="resources">
+        ${RESOURCE_UI.map((r) => `
+          <div class="res" title="${r.label}">
+            <span class="res-icon">${r.icon}</span>
+            <b data-k="${r.key}">0</b>
+            <small data-k="${r.key}-rate"></small>
+          </div>`).join('')}
       </div>
-      <div class="hud-bottom">
-        <button data-action="build">🏗️<span>Construire</span></button>
-        <button data-action="army">⚔️<span>Armée</span></button>
-        <button data-action="diplomacy">🤝<span>Diplomatie</span></button>
+      <div class="actions-left">
+        <button class="round red big" data-sheet="army"><span class="glyph">⚔️</span><span class="label">Armée</span><span class="badge" data-k="weapons" title="Armes en stock">0</span></button>
+        <button class="round blue" data-sheet="diplomacy"><span class="glyph">🤝</span><span class="label">Diplomatie</span></button>
+      </div>
+      <div class="actions-right">
+        <button class="round gold big" data-sheet="build"><span class="glyph">🔨</span><span class="label">Construire</span></button>
       </div>
       <div class="toast"></div>
     `;
@@ -50,44 +79,85 @@ export class Hud {
     this.root.querySelectorAll<HTMLElement>('[data-k]').forEach((el) => this.values.set(el.dataset.k!, el));
     this.toastEl = this.root.querySelector('.toast')!;
 
-    const placeholders: Record<string, string> = {
-      build: 'Construction : à implémenter (agent A)',
-      army: 'Armurerie / caserne : à implémenter (agent B)',
-      diplomacy: 'Diplomatie : à implémenter (agent E)',
+    this.sheets = {
+      build: new BuildPanel(this.root, (t) => actions.build(t), () => this.toast('Pas assez de ressources')),
+      army: new ArmyPanel(this.root, actions),
+      diplomacy: new DiplomacyPanel(
+        this.root,
+        (x, y) => {
+          actions.focus(x, y);
+          this.openSheet(null);
+        },
+        () => this.toast('Alliances : bientôt disponible'),
+      ),
     };
-    this.root.querySelectorAll<HTMLButtonElement>('button[data-action]').forEach((btn) => {
-      btn.addEventListener('click', () => bus.emit('notify', { message: placeholders[btn.dataset.action!] }));
+    for (const sheet of Object.values(this.sheets)) sheet.onClose = () => this.openSheet(null);
+    this.selection = new SelectionCard(this.root, () => this.openSheet('army'));
+
+    this.root.querySelectorAll<HTMLButtonElement>('button[data-sheet]').forEach((btn) => {
+      btn.addEventListener('click', () => this.openSheet(btn.dataset.sheet as SheetName));
+    });
+
+    this.root.querySelectorAll<HTMLButtonElement>('button[data-act="home"]').forEach((btn) => {
+      btn.addEventListener('click', () => actions.home());
     });
 
     bus.on('notify', ({ message }) => this.toast(message));
+    bus.on('building:selected', ({ buildingId }) => {
+      this.selection.select(buildingId);
+      this.lastRefresh = 0;
+    });
   }
 
-  /** Called every frame (cheap: only text updates). */
+  /** Opens one sheet (or none). Bottom buttons and the selection card hide while a sheet is open. */
+  openSheet(name: SheetName | null): void {
+    const state = this.getState();
+    for (const [key, sheet] of Object.entries(this.sheets)) sheet.setOpen(key === name, state);
+    this.root.classList.toggle('sheet-open', name !== null);
+    if (name) this.selection.select(null);
+  }
+
+  /** Called every frame; DOM updates are throttled. */
   update(): void {
+    const now = performance.now();
+    if (now - this.lastRefresh < REFRESH_MS) return;
+    this.lastRefresh = now;
+
     const state = this.getState();
     const v = state.villages[PLAYER_ID];
-    const rates = productionRates(state, PLAYER_ID);
-    for (const r of RESOURCES) {
-      this.set(r.key, String(v.resources[r.key]));
+    const rates = incomeRates(state, PLAYER_ID);
+    for (const r of RESOURCE_UI) {
+      this.set(r.key, fmt(v.resources[r.key]));
       const rate = rates[r.key];
-      this.set(`${r.key}-rate`, rate > 0 ? `+${rate.toFixed(1)}/s` : '');
+      this.set(`${r.key}-rate`, Math.abs(rate) >= 0.05 ? `${rate > 0 ? '+' : ''}${rate.toFixed(1)}/s` : '');
     }
-    this.set('workers', String(civilians(state, PLAYER_ID)));
-    this.set('warriors', String(warriors(state, PLAYER_ID).length));
-    this.set('housing', String(housingCap(state, PLAYER_ID)));
-    this.set('sword', String(v.weapons.sword));
-    this.set('bow', String(v.weapons.bow));
+
+    const workers = civilians(state, PLAYER_ID);
+    const army = warriors(state, PLAYER_ID).length;
+    const cap = Math.max(1, housingCap(state, PLAYER_ID));
+    this.set('workers', String(workers));
+    this.set('warriors', String(army));
+    this.set('housing', `${workers + army}/${cap}`);
+    this.root.style.setProperty('--workers', `${(workers / cap) * 100}%`);
+    this.root.style.setProperty('--warriors', `${(army / cap) * 100}%`);
+    const weapons = v.weapons.sword + v.weapons.bow;
+    this.set('weapons', String(weapons));
+    this.values.get('weapons')!.hidden = weapons === 0;
+
+    for (const sheet of Object.values(this.sheets)) if (sheet.isOpen) sheet.refresh(state);
+    this.selection.refresh(state);
   }
 
   toast(message: string): void {
     this.toastEl.textContent = message;
+    this.toastEl.classList.remove('show');
+    void this.toastEl.offsetWidth; // restart the pop animation
     this.toastEl.classList.add('show');
     window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => this.toastEl.classList.remove('show'), 2200);
   }
 
   private set(key: string, text: string): void {
-    const el = this.values.get(key);
-    if (el && el.textContent !== text) el.textContent = text;
+    setText(this.values.get(key) ?? null, text);
   }
 }

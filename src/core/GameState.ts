@@ -56,6 +56,7 @@ export function createGameState(world: WorldGen): GameState {
     units: {},
     nextId: 0,
     depletion: {},
+    fog: { explored: {}, radius: {}, version: 0 },
     status: 'playing',
   };
 

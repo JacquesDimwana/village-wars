@@ -11,6 +11,8 @@ export interface GameEvents {
   'village:destroyed': { villageId: string };
   'game:over': { status: 'won' | 'lost' };
   'tile:tapped': { tx: number; ty: number; tile: TileType };
+  /** Building tapped by the player (null = selection cleared). */
+  'building:selected': { buildingId: string | null };
   notify: { message: string };
 }
 

@@ -14,7 +14,7 @@ export const TILE_HEIGHT: Record<TileType, number> = {
   ore: 0.12,
 };
 
-const TILE_COLOR: Record<TileType, number> = {
+export const TILE_COLOR: Record<TileType, number> = {
   water: 0x2b6a8f,
   sand: 0xe6d29a,
   grass: 0x86c552,
