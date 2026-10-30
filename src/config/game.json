@@ -1,0 +1,26 @@
+{
+  "seed": 1337,
+  "chunkSize": 16,
+  "chunkLoadRadius": 2,
+  "aiCount": 5,
+  "aiSpawnRadius": 70,
+  "aiSpawnJitter": 12,
+  "clearRadiusAroundTownHall": 2,
+  "buildRadius": 8,
+  "startingResources": {
+    "wood": 200,
+    "stone": 100,
+    "ore": 0,
+    "iron": 0
+  },
+  "camera": {
+    "minZoom": 0.4,
+    "maxZoom": 2,
+    "initialZoom": 1
+  },
+  "startingInhabitants": 3,
+  "startingWeapons": {
+    "sword": 0,
+    "bow": 0
+  }
+}

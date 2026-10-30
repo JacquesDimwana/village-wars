@@ -1,0 +1,47 @@
+{
+  "thinkIntervalMs": 2000,
+  "housingThreshold": 0.8,
+  "personalities": {
+    "aggressive": {
+      "name": "Agressif",
+      "barracksPriority": 1,
+      "attackThreshold": 1.1,
+      "unitMix": {
+        "knight": 0.7,
+        "archer": 0.3
+      },
+      "baseAcceptance": 0.1,
+      "targetPreference": "weakest"
+    },
+    "economic": {
+      "name": "Économe",
+      "barracksPriority": 3,
+      "attackThreshold": 2.0,
+      "unitMix": {
+        "knight": 0.5,
+        "archer": 0.5
+      },
+      "baseAcceptance": 0.35,
+      "targetPreference": "closest"
+    },
+    "diplomat": {
+      "name": "Diplomate",
+      "barracksPriority": 2,
+      "attackThreshold": 1.6,
+      "unitMix": {
+        "knight": 0.3,
+        "archer": 0.7
+      },
+      "baseAcceptance": 0.6,
+      "targetPreference": "closest"
+    }
+  },
+  "assignment": [
+    "aggressive",
+    "economic",
+    "diplomat",
+    "aggressive",
+    "economic"
+  ],
+  "minWorkers": 6
+}

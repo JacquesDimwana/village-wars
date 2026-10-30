@@ -1,0 +1,31 @@
+{
+  "tileAmounts": {
+    "forest": 150,
+    "rock": 200,
+    "ore": 120
+  },
+  "smelter": {
+    "orePerIron": 2,
+    "intervalMs": 5000
+  },
+  "population": {
+    "growthPerSecond": 0.1
+  },
+  "weapons": {
+    "sword": {
+      "name": "Épée",
+      "cost": {
+        "wood": 10,
+        "iron": 10
+      },
+      "forgeTimeMs": 6000
+    },
+    "bow": {
+      "name": "Arc",
+      "cost": {
+        "wood": 20
+      },
+      "forgeTimeMs": 4000
+    }
+  }
+}

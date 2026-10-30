@@ -1,0 +1,31 @@
+{
+  "counterMultiplier": 1.5,
+  "archer": {
+    "name": "Archer",
+    "hp": 70,
+    "attack": 8,
+    "range": 5,
+    "attackCooldownMs": 1200,
+    "speed": 2.0,
+    "aggroRange": 6,
+    "vision": 7,
+    "military": true,
+    "weapon": "bow"
+  },
+  "knight": {
+    "name": "Chevalier (épée)",
+    "hp": 200,
+    "attack": 16,
+    "range": 1,
+    "attackCooldownMs": 1100,
+    "speed": 3.0,
+    "aggroRange": 6,
+    "vision": 6,
+    "military": true,
+    "strongAgainst": [
+      "archer"
+    ],
+    "buildingDamageMultiplier": 1.5,
+    "weapon": "sword"
+  }
+}

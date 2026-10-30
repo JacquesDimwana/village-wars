@@ -1,0 +1,166 @@
+{
+  "townHall": {
+    "name": "Hôtel de ville",
+    "size": 3,
+    "hp": 2000,
+    "cost": {},
+    "buildTimeMs": 0,
+    "population": 5,
+    "vision": 8,
+    "levels": [
+      {
+        "level": 1,
+        "cost": {}
+      },
+      {
+        "level": 2,
+        "cost": {
+          "wood": 300,
+          "stone": 200
+        },
+        "hpBonus": 1000,
+        "population": 5
+      },
+      {
+        "level": 3,
+        "cost": {
+          "wood": 500,
+          "stone": 400,
+          "iron": 100
+        },
+        "hpBonus": 1500,
+        "population": 5
+      }
+    ],
+    "workerSlots": 3,
+    "produces": {
+      "wood": 0.4,
+      "stone": 0.2
+    }
+  },
+  "house": {
+    "name": "Maison",
+    "size": 2,
+    "hp": 300,
+    "cost": {
+      "wood": 50
+    },
+    "buildTimeMs": 8000,
+    "population": 5,
+    "vision": 3
+  },
+  "lumberCamp": {
+    "name": "Camp de bûcherons",
+    "size": 2,
+    "hp": 400,
+    "cost": {
+      "wood": 75
+    },
+    "buildTimeMs": 10000,
+    "vision": 4,
+    "produces": {
+      "wood": 1.2
+    },
+    "requiresNearbyTile": {
+      "type": "forest",
+      "radius": 4
+    },
+    "workerSlots": 3
+  },
+  "quarry": {
+    "name": "Carrière",
+    "size": 2,
+    "hp": 500,
+    "cost": {
+      "wood": 100
+    },
+    "buildTimeMs": 12000,
+    "vision": 4,
+    "produces": {
+      "stone": 0.8
+    },
+    "requiresNearbyTile": {
+      "type": "rock",
+      "radius": 4
+    },
+    "workerSlots": 3
+  },
+  "mine": {
+    "name": "Mine",
+    "size": 2,
+    "hp": 500,
+    "cost": {
+      "wood": 120,
+      "stone": 60
+    },
+    "buildTimeMs": 15000,
+    "vision": 4,
+    "produces": {
+      "ore": 0.6
+    },
+    "requiresNearbyTile": {
+      "type": "ore",
+      "radius": 4
+    },
+    "workerSlots": 3
+  },
+  "smelter": {
+    "name": "Fonderie",
+    "size": 2,
+    "hp": 600,
+    "cost": {
+      "wood": 100,
+      "stone": 150
+    },
+    "buildTimeMs": 15000,
+    "vision": 4,
+    "smelts": true,
+    "workerSlots": 2
+  },
+  "barracks": {
+    "name": "Caserne",
+    "size": 3,
+    "hp": 900,
+    "cost": {
+      "wood": 150,
+      "stone": 100
+    },
+    "buildTimeMs": 18000,
+    "vision": 5,
+    "converts": [
+      "knight",
+      "archer"
+    ]
+  },
+  "armory": {
+    "name": "Armurerie",
+    "size": 2,
+    "hp": 600,
+    "cost": {
+      "wood": 150,
+      "stone": 150,
+      "iron": 50
+    },
+    "buildTimeMs": 20000,
+    "vision": 4,
+    "workerSlots": 2,
+    "forges": [
+      "sword",
+      "bow"
+    ]
+  },
+  "tower": {
+    "name": "Tour de défense",
+    "size": 1,
+    "hp": 700,
+    "cost": {
+      "wood": 50,
+      "stone": 125
+    },
+    "buildTimeMs": 14000,
+    "vision": 7,
+    "attack": 14,
+    "attackRange": 6,
+    "attackCooldownMs": 1200
+  }
+}
