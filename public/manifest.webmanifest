@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "Village Wars",
+  "short_name": "Village Wars",
+  "description": "RTS mobile en 3D low-poly : loge tes habitants, arme-les et détruis les villages ennemis.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#142012",
+  "theme_color": "#1b2a1b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
