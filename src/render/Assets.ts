@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { paletteCharacter, rangerAtlas } from './QuaterniusMaterials';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
-import type { BuildingType, UnitType } from '../core/types';
+import type { BuildingType } from '../core/types';
 import type { KayKitColor } from './teams';
 import { bakeCharacter, type BakeSpec, type VatModel } from './VatBaker';
 
@@ -32,61 +34,34 @@ export const NATURE = {
 
 const NEUTRAL = ['building_scaffolding', 'building_destroyed', 'resource_stone', 'resource_lumber'];
 
-export const CHARACTER_FILES: Record<UnitType, string> = {
-  knight: 'characters/Knight.glb',
-  archer: 'characters/Rogue_Hooded.glb',
-};
-
-const PROPS: Record<UnitType, string[]> = {
-  knight: ['1H_Sword_Offhand', 'Badge_Shield', 'Rectangle_Shield', 'Round_Shield', 'Spike_Shield', '1H_Sword', '2H_Sword'],
-  archer: ['Knife_Offhand', '1H_Crossbow', '2H_Crossbow', 'Knife', 'Throwable'],
-};
-
-/** Crowd models drawn with vertex animation textures (see VatBaker / CrowdRenderer). */
+/** Crowd models drawn with vertex animation textures. */
 export type CrowdModelKind = 'knight' | 'archer' | 'villager';
-
 const CHARACTER_HEIGHT = 0.85;
 const CROWD_SPECS: Record<CrowdModelKind, { file: string; spec: BakeSpec }> = {
   knight: {
-    file: CHARACTER_FILES.knight,
-    spec: {
-      props: PROPS.knight,
-      keep: ['1H_Sword', 'Round_Shield'],
-      height: CHARACTER_HEIGHT * 1.1,
-      clips: [
-        { name: 'idle', clip: 'Idle', frames: 4 },
-        { name: 'walk', clip: 'Walking_A', frames: 8 },
-        { name: 'attack', clip: '1H_Melee_Attack_Chop', frames: 6 },
-      ],
-    },
+    file: 'quaternius/characters/Knight_Male.fbx',
+    spec: { props: [], keep: [], height: CHARACTER_HEIGHT * 1.1, clips: [
+      { name: 'idle', clip: 'CharacterArmature|Idle', frames: 4 },
+      { name: 'walk', clip: 'CharacterArmature|Walk', frames: 8 },
+      { name: 'attack', clip: 'CharacterArmature|Punch', frames: 6 },
+    ] },
   },
   archer: {
-    file: CHARACTER_FILES.archer,
-    spec: {
-      props: PROPS.archer,
-      keep: ['2H_Crossbow'],
-      height: CHARACTER_HEIGHT,
-      clips: [
-        { name: 'idle', clip: '2H_Ranged_Aiming', frames: 3 },
-        { name: 'walk', clip: 'Walking_B', frames: 8 },
-        { name: 'attack', clip: '2H_Ranged_Shoot', frames: 6 },
-      ],
-    },
+    file: 'quaternius/ranger/Ranger.fbx',
+    spec: { props: [], keep: [], height: CHARACTER_HEIGHT, clips: [
+      { name: 'idle', clip: 'CharacterArmature|Idle_Weapon', frames: 4 },
+      { name: 'walk', clip: 'CharacterArmature|Walk', frames: 8 },
+      { name: 'attack', clip: 'CharacterArmature|Bow_Attack_Shoot', frames: 6 },
+    ] },
   },
   villager: {
-    file: CHARACTER_FILES.archer,
-    spec: {
-      props: PROPS.archer,
-      keep: [],
-      optional: ['Knife'],
-      hide: ['Rogue_Cape'],
-      height: CHARACTER_HEIGHT,
-      clips: [
-        { name: 'idle', clip: 'Idle', frames: 4 },
-        { name: 'walk', clip: 'Walking_A', frames: 8 },
-        { name: 'work', clip: '1H_Melee_Attack_Chop', frames: 6 },
-      ],
-    },
+    file: 'quaternius/characters/Worker_Male.fbx',
+    spec: { props: [], keep: [], height: CHARACTER_HEIGHT, clips: [
+      { name: 'idle', clip: 'CharacterArmature|Idle', frames: 4 },
+      { name: 'walk', clip: 'CharacterArmature|Walk', frames: 8 },
+      { name: 'carry', clip: 'CharacterArmature|Walk_Carry', frames: 8 },
+      { name: 'work', clip: 'CharacterArmature|PickUp', frames: 6 },
+    ] },
   },
 };
 
@@ -113,7 +88,9 @@ export class Assets {
       files.push(`kaykit/flag_${c}.gltf`);
     }
     for (const n of new Set([...NATURE.trees, ...NATURE.rocks, ...NEUTRAL])) files.push(`kaykit/${n}.gltf`);
-    const charFiles = Object.values(CHARACTER_FILES);
+    const charFiles = Object.values(CROWD_SPECS).map(({ file }) => file);
+    const fbxLoader = new FBXLoader();
+    const characters = new Map<string, THREE.Group>();
     const total = files.length + charFiles.length;
     let done = 0;
     const tick = () => onProgress(++done / total);
@@ -124,13 +101,16 @@ export class Assets {
         tick();
       }),
       ...charFiles.map(async (f) => {
-        this.gltfs.set(f, await this.loader.loadAsync(BASE + f));
+        characters.set(f, await fbxLoader.loadAsync(BASE + f));
         tick();
       }),
     ]);
     for (const [kind, { file, spec }] of Object.entries(CROWD_SPECS) as [CrowdModelKind, (typeof CROWD_SPECS)[CrowdModelKind]][]) {
-      const gltf = this.require(file);
-      this.crowd.set(kind, bakeCharacter(gltf.scene, gltf.animations, spec));
+      const scene = characters.get(file);
+      if (!scene) throw new Error(`Character not loaded: ${file}`);
+      if (kind === 'archer') await rangerAtlas(scene, BASE + 'quaternius/ranger/');
+      else paletteCharacter(scene);
+      this.crowd.set(kind, bakeCharacter(scene, scene.animations, spec));
     }
   }
 
