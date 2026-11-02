@@ -85,6 +85,18 @@ export interface GameState {
   /** Tiles explored by the player (minimap / fog of war). */
   fog: FogState;
   status: 'playing' | 'won' | 'lost';
+  stats: GameStats;
+}
+
+/** Player statistics shown on the end screen (game time is `GameState.timeMs`). */
+export interface GameStats {
+  unitsTrained: number;
+  /** Resources gathered by the player's buildings (smelted iron included). */
+  resourcesGathered: number;
+  /** Enemy villages eliminated (by anyone). */
+  villagesDestroyed: number;
+  /** Highest unit id number already counted in `unitsTrained`. */
+  lastUnitSeq: number;
 }
 
 export interface FogState {

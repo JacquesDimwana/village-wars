@@ -154,9 +154,19 @@ restent, une dernière alerte rompt les alliances (« Il ne peut en rester qu'un
 
 ## 10. Conditions de fin
 
-- **Victoire** : tous les hôtels de ville ennemis détruits.
+- **Victoire** : tous les hôtels de ville ennemis (non alliés) détruits. S'il ne reste
+  que des alliés, les alliances sont rompues (« Il ne peut en rester qu'un ! », §9) et la
+  partie continue.
 - **Défaite** : ton hôtel de ville détruit.
+- Un village dont l'hôtel de ville est détruit est éliminé (`alive = false`).
 - Écran de fin : temps de partie, unités formées, ressources récoltées, villages détruits.
+  En victoire, 1 à 3 étoiles selon le temps (`victoryStarsMinutes` dans `game.json`).
+  Bouton « Rejouer ».
+- Écran titre : « Nouvelle partie » et « Continuer » (si une sauvegarde existe).
+- Sauvegarde automatique dans le stockage local (toutes les `autosaveSeconds` et quand
+  l'app passe en arrière-plan) ; effacée à la fin de la partie.
+- Menu pause (bouton ⏸) : reprendre, vitesse ×1 / ×2 (multiplie le tick logique),
+  recommencer, menu principal.
 
 ## 11. Interface
 
@@ -190,3 +200,7 @@ Multijoueur en ligne, arbre technologique, campagne, plusieurs maps, monétisati
 ## 13. Bonus si temps restant
 
 Sons (Kenney audio), animations de combat, tutoriel en 4 étapes, vitesse ×2.
+
+- **Tutoriel** (fait) : à la première partie, 4 bulles pointent les boutons du HUD —
+  Construire (→ camp de bûcherons), Armée, la mini-carte, Diplomatie. « Passer » à tout
+  moment ; affiché une seule fois.

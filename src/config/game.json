@@ -31,5 +31,9 @@
   "startingWeapons": {
     "sword": 0,
     "bow": 0
+  },
+  "endgame": {
+    "victoryStarsMinutes": [20, 40],
+    "autosaveSeconds": 10
   }
 }

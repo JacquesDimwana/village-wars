@@ -2,7 +2,8 @@ import type { BuildingType, Resources, TileType, WeaponType } from './types';
 
 /** All game events and their payloads. Add new events here so they stay typed. */
 export interface GameEvents {
-  'resources:changed': { villageId: string; resources: Resources };
+  /** `gained` = amount produced this tick (absent when resources were spent or traded). */
+  'resources:changed': { villageId: string; resources: Resources; gained?: number };
   'population:changed': { villageId: string };
   'weapons:changed': { villageId: string; weapons: Record<WeaponType, number> };
   'building:placed': { buildingId: string; type: BuildingType; villageId: string };

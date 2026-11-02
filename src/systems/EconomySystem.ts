@@ -82,7 +82,7 @@ export class EconomySystem {
     const dt = dtMs / 1000;
     for (const village of Object.values(state.villages)) {
       if (!village.alive) continue;
-      let changed = false;
+      let gained = 0;
       const rates = productionRates(state, village.id);
       for (const r of RESOURCE_TYPES) {
         village.production[r] += rates[r] * dt;
@@ -90,36 +90,36 @@ export class EconomySystem {
         if (whole > 0) {
           village.resources[r] += whole;
           village.production[r] -= whole;
-          changed = true;
+          gained += whole;
         }
       }
-      if (this.smelt(state, village, dtMs)) changed = true;
-      if (changed) {
-        this.bus?.emit('resources:changed', { villageId: village.id, resources: { ...village.resources } });
+      gained += this.smelt(state, village, dtMs);
+      if (gained > 0) {
+        this.bus?.emit('resources:changed', { villageId: village.id, resources: { ...village.resources }, gained });
       }
     }
   }
 
-  /** Staffed smelters convert `orePerIron` ore → 1 iron every `intervalMs` (scaled by staffing). */
-  private smelt(state: GameState, village: Village, dtMs: number): boolean {
+  /** Staffed smelters convert `orePerIron` ore → 1 iron every `intervalMs` (scaled by staffing). Returns iron made. */
+  private smelt(state: GameState, village: Village, dtMs: number): number {
     const assignment = assignWorkers(state, village.id);
     const speed = Object.values(state.buildings)
       .filter((b) => b.ownerId === village.id && b.buildProgress >= 1 && BUILDINGS[b.type].smelts)
       .reduce((sum, b) => sum + staffing(b, assignment), 0);
     if (speed === 0) {
       village.smelterTimerMs = 0;
-      return false;
+      return 0;
     }
     village.smelterTimerMs += dtMs * speed;
     const { orePerIron, intervalMs } = RESOURCES.smelter;
-    let changed = false;
+    let made = 0;
     while (village.smelterTimerMs >= intervalMs) {
       village.smelterTimerMs -= intervalMs;
       if (village.resources.ore < orePerIron) continue;
       village.resources.ore -= orePerIron;
       village.resources.iron += 1;
-      changed = true;
+      made += 1;
     }
-    return changed;
+    return made;
   }
 }

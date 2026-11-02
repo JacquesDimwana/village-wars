@@ -12,6 +12,8 @@ import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
 import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
 import { PopulationSystem, convertToWarrior, demobilize } from './systems/PopulationSystem';
+import { StatsSystem } from './systems/StatsSystem';
+import { VictorySystem } from './systems/VictorySystem';
 import { Hud, type HudActions } from './ui/Hud';
 import { Minimap } from './ui/Minimap';
 import { WorldGen } from './world/WorldGen';
@@ -26,7 +28,10 @@ const SHADOW_EXTENT_PER_DISTANCE = 1.4;
 
 export class Game {
   readonly world = new WorldGen(GAME.seed);
-  readonly state: GameState = createGameState(this.world);
+  readonly state: GameState;
+  /** Logic speed multiplier (pause menu: ×1 / ×2). */
+  speed = 1;
+  paused = false;
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
   readonly cam: RtsCamera;
@@ -43,11 +48,16 @@ export class Game {
   private economy = new EconomySystem(bus);
   private armory = new ArmorySystem(bus);
   private fog = new FogSystem();
+  private victory = new VictorySystem(bus);
+  private stats = new StatsSystem(bus);
 
   constructor(
     container: HTMLElement,
     assets: Assets,
+    /** Saved game to resume; a new game is created when absent. */
+    saved?: GameState | null,
   ) {
+    this.state = saved ?? createGameState(this.world);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
@@ -103,7 +113,7 @@ export class Game {
   private frame(): void {
     this.timer.update();
     const dt = Math.min(this.timer.getDelta(), 0.25);
-    this.accumulator += dt * 1000;
+    if (!this.paused) this.accumulator += dt * 1000 * this.speed;
     while (this.accumulator >= TICK_MS) {
       this.accumulator -= TICK_MS;
       this.tick(TICK_MS);
@@ -133,6 +143,8 @@ export class Game {
     // TODO(agent C) combat
     // TODO(agent D) ai
     // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
+    this.victory.update(this.state);
+    this.stats.update(this.state);
   }
 
   /** Keeps distance fog and the shadow area proportional to the zoom so dezooming stays readable. */
