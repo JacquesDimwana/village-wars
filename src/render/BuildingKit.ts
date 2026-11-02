@@ -29,11 +29,7 @@ const fence: Placement[] = [
 function layout(type: KitType, variant: number): Placement[] {
   switch (type) {
     case 'house': return house(variant % 2 === 1);
-    case 'townHall': return [...house(),
-      ['Wall_UnevenBrick_Straight', 0, 3, 0.5, 0, 0.48, 0.7, 0.48],
-      ['Wall_UnevenBrick_Straight', 0, 3, -0.5, P, 0.48, 0.7, 0.48],
-      ['Wall_UnevenBrick_Straight', -0.5, 3, 0, -P / 2, 0.48, 0.7, 0.48],
-      ['Wall_UnevenBrick_Straight', 0.5, 3, 0, P / 2, 0.48, 0.7, 0.48]];
+    case 'townHall': return house(true);
     case 'lumberCamp': return [
       ['Floor_WoodDark', 0, 0, 0], ['Prop_Support', -0.9, 0, -0.8], ['Prop_Support', 0.9, 0, -0.8],
       ['Roof_RoundTiles_4x4', 0, 2.6, 0, 0, 0.45, 0.3, 0.45],
@@ -85,12 +81,16 @@ export class BuildingKit {
     mesh.castShadow = true; mesh.receiveShadow = true;
     root.add(mesh);
     // A compact team-colored pennant is kept separate from the shared building atlas.
-    const banner = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.27, 0.025), new THREE.MeshStandardMaterial({ color: marker, roughness: 1 }));
     geometry.computeBoundingBox();
-    const height = geometry.boundingBox!.max.y;
-    banner.position.set(0, Math.max(0.22, height * 0.7), 0.49);
+    const box = geometry.boundingBox!;
+    const size = box.getSize(new THREE.Vector3());
+    const bannerWidth = Math.min(0.22, size.x * 0.4);
+    const bannerHeight = Math.min(0.27, size.y * 0.3);
+    const bannerDepth = Math.min(0.025, size.z);
+    const banner = new THREE.Mesh(new THREE.BoxGeometry(bannerWidth, bannerHeight, bannerDepth), new THREE.MeshStandardMaterial({ color: marker, roughness: 1 }));
+    banner.position.set(0, size.y * 0.7, box.max.z - bannerDepth / 2);
     root.add(banner);
-    root.scale.setScalar(footprint);
+    root.scale.setScalar(Math.max(0, footprint - 0.1));
     return root;
   }
 
@@ -144,7 +144,10 @@ export class BuildingKit {
     merged.computeBoundingBox();
     const box = merged.boundingBox!;
     const size = box.getSize(new THREE.Vector3());
-    const scale = 1 / Math.max(size.x, size.z);
+    // Fit both the ground footprint and the height, preserving each kit's proportions.
+    const widthLimit = type === 'tower' ? 0.65 : 1;
+    const heightLimit = type === 'townHall' || type === 'tower' ? 1.2 : 0.9;
+    const scale = Math.min(widthLimit / Math.max(size.x, size.z, 0.001), heightLimit / Math.max(size.y, 0.001));
     const center = box.getCenter(new THREE.Vector3());
     merged.translate(-center.x, -box.min.y, -center.z);
     merged.scale(scale, scale, scale);
