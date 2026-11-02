@@ -38,6 +38,10 @@ export interface Building {
   level: number;
   /** 0..1 — production and effects only apply at 1. */
   buildProgress: number;
+  /** Defense tower: what it shoots at and when it may shoot again (state.timeMs). */
+  targetId?: string | null;
+  nextAttackMs?: number;
+  lastAttackMs?: number;
 }
 
 /** Anything that walks on the grid (warriors and villagers). Handled by MovementSystem. */
@@ -63,6 +67,16 @@ export interface Unit extends Mover {
   departMs: number;
   /** Mission destination, applied when departMs reaches 0. */
   missionTarget: TilePos | null;
+  /** Enemy unit / villager / building being attacked (CombatSystem). */
+  targetId: string | null;
+  /** True when the player / AI ordered this target: chased anywhere, never swapped. */
+  ordered: boolean;
+  /** Earliest state.timeMs of the next hit. */
+  nextAttackMs: number;
+  /** state.timeMs of the last hit (renderer plays the attack clip from it). */
+  lastAttackMs: number;
+  /** Next state.timeMs the chase path may be recomputed. */
+  repathAtMs: number;
 }
 
 /**
@@ -89,6 +103,7 @@ export interface Villager extends Mover {
   enlistable: boolean;
   /** Works "inside" its building: counted, simulated cheaply, not drawn (crowd cap). */
   inside: boolean;
+  hp: number;
 }
 
 export interface Village {
@@ -114,6 +129,8 @@ export interface Village {
   allies: string[];
   /** Relation score per village id, -1..1. */
   relations: Record<string, number>;
+  /** Last attack suffered (CombatSystem): resting warriors nearby come out to defend. */
+  alarm?: { x: number; y: number; untilMs: number } | null;
 }
 
 export interface GameState {

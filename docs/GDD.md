@@ -163,6 +163,27 @@ les **villageois** (habitants civils, voir §4), visibles et sans combat.
 Stats dans `src/config/units.json`. Multiplicateur de contre : ×1.5.
 Combat : automatique. Un guerrier attaque l'ennemi le plus proche dans son `aggroRange`.
 Les guerriers au repos dans un village attaqué défendent automatiquement.
+
+**Règles de combat** (`systems/CombatSystem.ts`, réglages dans `game.json` → `combat`) :
+- Cible automatique : un guerrier arrêté (au repos ou arrivé à destination) choisit
+  l'ennemi le plus proche dans son `aggroRange`, par priorité : guerriers, puis
+  villageois visibles, puis bâtiments. Un guerrier en marche obéit à l'ordre de
+  déplacement (permet de battre en retraite) et ne s'arrête que s'il est ordonné d'attaquer.
+- Il se rapproche (A*) jusqu'à `range` (+ `combat.reach`, la demi-largeur d'un corps ou le
+  bord du bâtiment), puis frappe toutes les `attackCooldownMs`.
+- Dégâts = `attack` × 1.5 si la cible est dans `strongAgainst` × `buildingDamageMultiplier`
+  sur un bâtiment (chevalier ×1.5).
+- Ordre d'attaque : avec des soldats sélectionnés, toucher (ou clic droit) une unité ou un
+  bâtiment ennemi = attaquer cette cible jusqu'à sa destruction, sans limite de distance.
+- Alarme : quand un guerrier, un villageois ou un bâtiment d'un village est frappé, les
+  guerriers au repos de ce village dans `combat.defendRadius` de l'attaque sortent
+  défendre ; ils rentrent au camp quand plus aucun ennemi n'est à portée.
+- Tour de défense terminée : tire sur l'ennemi le plus proche à `attackRange`
+  (guerriers d'abord, puis villageois), `attack` toutes les `attackCooldownMs`.
+- Les alliés (et le même village) ne s'attaquent jamais ; une alliance conclue en plein
+  combat annule les cibles.
+- Mort : guerrier retiré, villageois tué = un habitant de moins. Bâtiment à 0 PV détruit ;
+  hôtel de ville détruit = village éliminé (§10).
 Déplacement (guerriers et villageois) : A* 8 directions sur la grille, sans couper les
 coins, recherche bornée ; l'eau et les bâtiments bloquent (forêts, roches et filons se
 traversent, le camp d'armée aussi). Un groupe envoyé sur une tuile se répartit sur les
@@ -257,7 +278,7 @@ restent, une dernière alerte rompt les alliances (« Il ne peut en rester qu'un
 
 ## 10. Conditions de fin
 
-- **Victoire** : tous les hôtels de ville ennemis détruits.
+- **Victoire** : tous les hôtels de ville ennemis (non alliés) détruits. Un village sans hôtel de ville est éliminé (`village:destroyed`) ; ses guerriers et bâtiments restants restent sur la carte.
 - **Défaite** : ton hôtel de ville détruit.
 - Écran de fin : temps de partie, unités formées, ressources récoltées, villages détruits.
 

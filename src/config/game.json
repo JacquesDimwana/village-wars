@@ -42,5 +42,11 @@
   },
   "army": {
     "departIntervalMs": 350
+  },
+  "combat": {
+    "reach": 0.5,
+    "defendRadius": 14,
+    "alarmMs": 6000,
+    "repathMs": 600
   }
 }

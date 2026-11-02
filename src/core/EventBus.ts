@@ -8,6 +8,8 @@ export interface GameEvents {
   'building:placed': { buildingId: string; type: BuildingType; villageId: string };
   'building:completed': { buildingId: string };
   'building:destroyed': { buildingId: string };
+  /** A warrior or villager was killed in combat. */
+  'unit:killed': { id: string; ownerId: string; kind: 'unit' | 'villager'; killerOwnerId: string };
   'village:destroyed': { villageId: string };
   'game:over': { status: 'won' | 'lost' };
   'tile:tapped': { tx: number; ty: number; tile: TileType };
