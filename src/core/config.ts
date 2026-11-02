@@ -2,6 +2,7 @@ import gameJson from '../config/game.json';
 import resourcesJson from '../config/resources.json';
 import buildingsJson from '../config/buildings.json';
 import unitsJson from '../config/units.json';
+import progressionJson from '../config/progression.json';
 import aiJson from '../config/ai.json';
 import type { BuildingType, Cost, Personality, ResourceType, UnitType, WeaponType } from './types';
 
@@ -54,6 +55,7 @@ export interface PersonalityDef {
   targetPreference: 'weakest' | 'closest';
 }
 
+export const PROGRESSION = progressionJson as unknown as { ages: Record<2 | 3, { name: string; cost: Cost; durationMs: number; requires: BuildingType[] }>; upgrades: Record<import('./types').UpgradeType, { name: string; age: number; cost: Cost; durationMs: number; attack: number; hp: number; units: UnitType[] }>; buildingAge: Partial<Record<BuildingType, number>>; unitAge: Partial<Record<UnitType, number>> };
 export const GAME = gameJson;
 export const RESOURCES = resourcesJson;
 export const BUILDINGS = buildingsJson as unknown as Record<BuildingType, BuildingDef>;

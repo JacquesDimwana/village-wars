@@ -1,0 +1,13 @@
+{
+  "ages": {
+    "2": { "name": "Temps des Bourgs", "cost": { "food": 400, "wood": 150 }, "durationMs": 90000, "requires": ["mill", "barracks"] },
+    "3": { "name": "Temps des Marches", "cost": { "food": 700, "iron": 250 }, "durationMs": 120000, "requires": ["armory", "tower"] }
+  },
+  "upgrades": {
+    "sharpIron": { "name": "Fer affûté", "age": 2, "cost": { "food": 100, "iron": 100 }, "durationMs": 45000, "attack": 2, "hp": 0, "units": ["spearman", "knight"] },
+    "rivetedMail": { "name": "Mailles rivetées", "age": 3, "cost": { "food": 150, "iron": 150 }, "durationMs": 60000, "attack": 0, "hp": 20, "units": ["spearman", "knight"] },
+    "reinforcedBolts": { "name": "Traits renforcés", "age": 3, "cost": { "food": 100, "wood": 100, "iron": 100 }, "durationMs": 60000, "attack": 2, "hp": 0, "units": ["archer"] }
+  },
+  "buildingAge": { "armory": 2, "tower": 2 },
+  "unitAge": { "archer": 2, "knight": 2 }
+}

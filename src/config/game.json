@@ -49,5 +49,12 @@
     "base": 5,
     "perHouse": 10,
     "max": 100
+  },
+  "construction": {
+    "additionalWorkerFactor": 0.6,
+    "maxWorkers": 4,
+    "repairHpPerSecond": 5,
+    "repairCostFactor": 0.5,
+    "cancelRefundFactor": 0.75
   }
 }

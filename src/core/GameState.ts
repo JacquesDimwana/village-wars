@@ -1,5 +1,5 @@
 import { hash2 } from './rng';
-import { AI, BUILDINGS, GAME, UNITS, RESOURCES } from './config';
+import { AI, BUILDINGS, GAME, UNITS, RESOURCES, PROGRESSION } from './config';
 import { PLAYER_ID } from './constants';
 import type { Building, BuildingType, GameState, Resources, Unit, UnitType, Village } from './types';
 import { spawnVillager } from '../systems/VillagerSystem';
@@ -43,6 +43,7 @@ export function addBuilding(
 
 export function addUnit(state: GameState, type: UnitType, ownerId: string, x: number, y: number): Unit {
   const def = UNITS[type];
+  const bonusHp = state.villages[ownerId].upgrades.reduce((n, key) => n + (PROGRESSION.upgrades[key].units.includes(type) ? PROGRESSION.upgrades[key].hp : 0), 0);
   const u: Unit = {
     id: nextId(state, 'u'),
     type,
@@ -50,8 +51,8 @@ export function addUnit(state: GameState, type: UnitType, ownerId: string, x: nu
     x,
     y,
     path: [],
-    hp: def.hp,
-    maxHp: def.hp,
+    hp: def.hp + bonusHp,
+    maxHp: def.hp + bonusHp,
     campId: null,
     onMission: false,
     departMs: 0,
@@ -93,6 +94,8 @@ export function createGameState(world: WorldGen): GameState {
       color: isPlayer ? PLAYER_COLOR : AI_COLORS[aiIndex % AI_COLORS.length],
       resources: { ...emptyResources(), ...GAME.startingResources },
       alive: true,
+      age: 1,
+      upgrades: [],
       allies: [],
       relations: {},
     };

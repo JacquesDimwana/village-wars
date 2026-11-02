@@ -4,7 +4,9 @@ import { PLAYER_ID } from '../src/core/constants';
 import { EventBus } from '../src/core/EventBus';
 import { createGameState, townHallOf } from '../src/core/GameState';
 import type { TileType } from '../src/core/types';
-import { ConstructionSystem, canPlace, placeBuilding } from '../src/systems/ConstructionSystem';
+import { ConstructionSystem, canPlace, placeBuilding, orderBuildingWork, cancelConstruction } from '../src/systems/ConstructionSystem';
+import { MovementSystem } from '../src/systems/MovementSystem';
+import { spawnVillager } from '../src/systems/VillagerSystem';
 import { WorldGen } from '../src/world/WorldGen';
 
 /** All grass except the tiles listed. */
@@ -71,7 +73,10 @@ describe('ConstructionSystem', () => {
     bus.on('building:completed', ({ buildingId }) => done.push(buildingId));
     const res = placeBuilding(state, stubWorld(), 'house', hall.tx + 4, hall.ty, PLAYER_ID);
     if (!res.ok) throw new Error(res.reason);
-    const sys = new ConstructionSystem(bus);
+    const movement = new MovementSystem(() => 'grass');
+    const worker = spawnVillager(state, PLAYER_ID, res.building.tx - 1, res.building.ty);
+    orderBuildingWork(state, movement, [worker], res.building);
+    const sys = new ConstructionSystem(bus, movement);
     sys.update(state, BUILDINGS.house.buildTimeMs / 2);
     expect(res.building.buildProgress).toBeCloseTo(0.5);
     expect(done).toEqual([]);
@@ -79,6 +84,47 @@ describe('ConstructionSystem', () => {
     sys.update(state, 100);
     expect(res.building.buildProgress).toBe(1);
     expect(done).toEqual([res.building.id]);
+  });
+
+  it('pauses without builders, caps the bonus and refunds cancellation', () => {
+    const { state, player, hall } = setup();
+    const res = placeBuilding(state, stubWorld(), 'house', hall.tx + 4, hall.ty, PLAYER_ID);
+    if (!res.ok) throw new Error(res.reason);
+    const movement = new MovementSystem(() => 'grass');
+    const sys = new ConstructionSystem(undefined, movement);
+    sys.update(state, 1000);
+    expect(res.building.buildProgress).toBe(0);
+    const workers = Array.from({ length: 5 }, () => spawnVillager(state, PLAYER_ID, res.building.tx - 1, res.building.ty));
+    orderBuildingWork(state, movement, workers, res.building);
+    sys.update(state, 1000);
+    expect(res.building.buildProgress).toBeCloseTo(2.8 / 25);
+    expect(cancelConstruction(state, res.building.id)).toBe(true);
+    expect(player.resources.wood).toBe(987);
+    expect(workers.every(v => v.task === 'idle')).toBe(true);
+  });
+
+  it('repairs proportionally and pauses until resources return', () => {
+    const { state, player, hall } = setup();
+    hall.hp = hall.maxHp - 20;
+    const movement = new MovementSystem(() => 'grass');
+    const worker = spawnVillager(state, PLAYER_ID, hall.tx - 1, hall.ty);
+    orderBuildingWork(state, movement, [worker], hall);
+    const sys = new ConstructionSystem(undefined, movement);
+    sys.update(state, 1000);
+    expect(hall.hp).toBe(hall.maxHp - 15);
+    const res = placeBuilding(state, stubWorld(), 'house', hall.tx + 4, hall.ty, PLAYER_ID);
+    if (!res.ok) throw new Error(res.reason);
+    res.building.buildProgress = 1; res.building.hp = 400;
+    worker.x = res.building.tx - 1; worker.y = res.building.ty;
+    orderBuildingWork(state, movement, [worker], res.building);
+    player.resources.wood = 0;
+    sys.update(state, 1000);
+    expect(worker.task).toBe('idle');
+    expect(res.building.hp).toBe(400);
+    player.resources.wood = 10;
+    sys.update(state, 1000);
+    expect(res.building.hp).toBe(405);
+    expect(player.resources.wood).toBeCloseTo(9.75);
   });
 
   it('uses the GDD depot and farm values', () => {

@@ -2,10 +2,11 @@ import { AI, GAME } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import { townHallOf } from '../core/GameState';
 import type { GameState } from '../core/types';
-import { placeBuilding, type TileSource } from './ConstructionSystem';
+import { placeBuilding, orderBuildingWork, type TileSource } from './ConstructionSystem';
 import { nearestResourceTiles, orderHarvest } from './GatherSystem';
 import type { MovementSystem } from './MovementSystem';
 import { capacityOf, populationOf, queueTraining, reservedOf } from './TrainingSystem';
+import { queueAge } from './ProgressionSystem';
 import { listIdleVillagers } from './VillagerSystem';
 
 /** Minimal economy: all decisions use the same orders and costs as the player. */
@@ -20,6 +21,11 @@ export class AISystem {
       if (village.id === PLAYER_ID || !village.alive) continue;
       const hall = townHallOf(state, village.id);
       if (!hall) continue;
+      if (village.age === 1) {
+        queueAge(state, hall.id);
+        const needed = (['mill', 'barracks'] as const).find(type => !Object.values(state.buildings).some(b => b.ownerId === village.id && b.type === type));
+        if (needed && Object.values(state.buildings).some(b => b.ownerId === village.id && b.type === 'house')) { let placed = false; for (let r = 1; r <= GAME.buildRadius && !placed; r++) for (let y = hall.ty-r; y <= hall.ty+r && !placed; y++) for (let x = hall.tx-r; x <= hall.tx+r && !placed; x++) { if (Math.max(Math.abs(x-hall.tx), Math.abs(y-hall.ty)) === r) placed = placeBuilding(state, this.world, needed, x, y, village.id).ok; } }
+      }
       const pop = populationOf(state, village.id) + reservedOf(state, village.id);
       if (pop < AI.workerTarget) queueTraining(state, hall.id, 'villager');
       if (pop / capacityOf(state, village.id) >= AI.housingThreshold && !Object.values(state.buildings).some(b => b.ownerId === village.id && b.type === 'house' && b.buildProgress < 1)) {
@@ -29,7 +35,13 @@ export class AISystem {
           placed = placeBuilding(state, this.world, 'house', x, y, village.id).ok;
         }
       }
-      for (const v of listIdleVillagers(state, village.id)) {
+      const site = Object.values(state.buildings).find(b => b.ownerId === village.id && b.buildProgress < 1 && !Object.values(state.villagers).some(v => v.jobId === b.id));
+      if (site) {
+        const candidates = Object.values(state.villagers).filter(v => v.ownerId === village.id && !v.inside);
+        candidates.sort ( (a, b) => Number(a.task !== 'idle') - Number(b.task !== 'idle'));
+        for (const v of candidates) if (orderBuildingWork(state, this.movement, [v], site)) break;
+      }
+      for (const v of listIdleVillagers(state, village.id).filter(worker => !worker.jobId)) {
         const workers = Object.values(state.villagers).filter(w => w.ownerId === village.id && w.harvest);
         const food = workers.filter(w => w.harvest?.sourceType === 'berry' || w.harvest?.sourceType === 'animal').length;
         const wood = workers.length - food;

@@ -1,4 +1,4 @@
-import { BUILDINGS } from '../core/config';
+import { BUILDINGS, PROGRESSION } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import type { BuildingType, GameState } from '../core/types';
 import { canAfford, incomeRates, timeToAfford } from '../systems/EconomySystem';
@@ -50,11 +50,13 @@ export class BuildPanel extends Sheet {
     const rates = incomeRates(state, PLAYER_ID);
     this.body.querySelectorAll<HTMLButtonElement>('.card').forEach((card) => {
       const def = BUILDINGS[card.dataset.type as BuildingType];
-      const affordable = canAfford(v, def.cost);
+      const lockedAge = v.age < (PROGRESSION.buildingAge[card.dataset.type as BuildingType] ?? 1);
+      const affordable = canAfford(v, def.cost) && !lockedAge;
       card.classList.toggle('locked', !affordable);
       setHtml(card.querySelector('.costs'), costHtml(def.cost, v));
       let time = `${gi('build')} ${Math.round(def.buildTimeMs / 1000)} s`;
-      if (!affordable) {
+      if (lockedAge) time = 'Disponible au Temps des Bourgs';
+      else if (!affordable) {
         const wait = timeToAfford(v, def.cost, rates);
         if (typeof wait === 'number') time = `${gi('time')} dans ~${formatWait(wait)}`;
         else time = `<span class="short">Il faut ${RESOURCE_UI.find((r) => r.key === wait.missing)!.some}</span>`;

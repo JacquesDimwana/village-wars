@@ -17,6 +17,8 @@ export type BuildingType =
   | 'armyCamp';
 
 export type UnitType = 'knight' | 'archer' | 'spearman';
+export type UpgradeType = 'sharpIron' | 'rivetedMail' | 'reinforcedBolts';
+export type QueueItem = { type: UnitType | 'villager' | 'age'; remainingMs: number };
 export type WeaponType = 'sword' | 'bow';
 
 export type Personality = 'aggressive' | 'economic' | 'diplomat';
@@ -38,7 +40,8 @@ export interface Building {
   level: number;
   /** 0..1 — production and effects only apply at 1. */
   buildProgress: number;
-  trainingQueue?: { type: UnitType | 'villager'; remainingMs: number }[];
+  trainingQueue?: QueueItem[];
+  researchQueue?: { type: UpgradeType; remainingMs: number }[];
   rallyPoint?: TilePos | null;
   /** Defense tower: what it shoots at and when it may shoot again (state.timeMs). */
   targetId?: string | null;
@@ -116,6 +119,8 @@ export interface Village {
   color: number;
   resources: Resources;
   alive: boolean;
+  age: 1 | 2 | 3;
+  upgrades: UpgradeType[];
   /** Ids of allied villages. */
   allies: string[];
   /** Relation score per village id, -1..1. */

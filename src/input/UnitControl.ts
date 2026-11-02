@@ -4,6 +4,7 @@ import { PLAYER_ID } from '../core/constants';
 import type { EventBus } from '../core/EventBus';
 import type { Building, GameState, TilePos, Unit, Villager } from '../core/types';
 import { campDisplay, drawnUnitIds, isArmyCamp, recallArmy, sendArmy, soldiersInCamp } from '../systems/ArmySystem';
+import { orderBuildingWork } from '../systems/ConstructionSystem';
 import { isEnemy, orderAttack } from '../systems/CombatSystem';
 import { TILE_RESOURCE, isResourceTile, orderHarvest } from '../systems/GatherSystem';
 import type { MovementSystem } from '../systems/MovementSystem';
@@ -158,6 +159,10 @@ export class UnitControl {
       if (building && isEnemy(state, PLAYER_ID, building.ownerId)) return this.attack(state, unitIds, building.id);
     }
 
+    if (building && building.ownerId === PLAYER_ID && (building.buildProgress < 1 || building.hp < building.maxHp) && villagers.length > 0) {
+      orderBuildingWork(state, this.d.movement, villagers, building);
+      return true;
+    }
     if (building?.type === 'farm' && building.ownerId === PLAYER_ID && orderHarvest(state, this.d.movement, villagers, building.tx, building.ty)) return true;
     if (building) {
       const def = BUILDINGS[building.type];

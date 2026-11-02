@@ -1,3 +1,5 @@
+import { PROGRESSION } from '../core/config';
+import { cancelResearch } from './ProgressionSystem';
 import { refundTraining } from './TrainingSystem';
 import { BUILDINGS, COUNTER_MULTIPLIER, GAME, UNITS } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
@@ -49,9 +51,9 @@ export function inRange(u: Unit, t: Target): boolean {
 }
 
 /** Damage of one hit: counter ×1.5 (`strongAgainst`), building multiplier (knight ×1.5). */
-export function hitDamage(u: Unit, t: Target): number {
+export function hitDamage(u: Unit, t: Target, state?: GameState): number {
   const def = UNITS[u.type];
-  let dmg = def.attack;
+  let dmg = def.attack + (state?.villages[u.ownerId].upgrades.reduce((n, key) => n + (PROGRESSION.upgrades[key].units.includes(u.type) ? PROGRESSION.upgrades[key].attack : 0), 0) ?? 0);
   if (t.kind === 'unit' && def.strongAgainst?.includes(t.e.type)) dmg *= COUNTER_MULTIPLIER;
   if (t.kind === 'building') dmg *= def.buildingDamageMultiplier ?? 1;
   return dmg;
@@ -176,7 +178,7 @@ export class CombatSystem {
       if (state.timeMs >= u.nextAttackMs) {
         u.nextAttackMs = state.timeMs + def.attackCooldownMs;
         u.lastAttackMs = state.timeMs;
-        this.damage(state, t, hitDamage(u, t), u.ownerId);
+        this.damage(state, t, hitDamage(u, t, state), u.ownerId);
       }
       return;
     }
@@ -237,6 +239,7 @@ export class CombatSystem {
 
   private destroyBuilding(state: GameState, b: Building): void {
     refundTraining(state, b.id);
+    while (b.researchQueue?.length) cancelResearch(state, b.id, 0);
     delete state.buildings[b.id];
     this.bus.emit('building:destroyed', { buildingId: b.id });
     if (b.type !== 'townHall') return;

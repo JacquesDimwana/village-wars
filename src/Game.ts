@@ -12,8 +12,9 @@ import { CrowdRenderer } from './render/CrowdRenderer';
 import { EntityRenderer } from './render/EntityRenderer';
 import { PlacementGhost } from './render/PlacementGhost';
 import { Terrain, type ViewBounds } from './render/Terrain';
+import { ProgressionSystem, queueAge, queueResearch, cancelResearch } from './systems/ProgressionSystem';
 import { TrainingSystem, queueTraining, cancelTraining } from './systems/TrainingSystem';
-import { ConstructionSystem, canPlace, placeBuilding, upgradeBuilding } from './systems/ConstructionSystem';
+import { ConstructionSystem, canPlace, placeBuilding, upgradeBuilding, orderBuildingWork, cancelConstruction } from './systems/ConstructionSystem';
 import { FogSystem } from './systems/FogSystem';
 import { AISystem } from './systems/AISystem';
 import { ArmySystem } from './systems/ArmySystem';
@@ -63,12 +64,13 @@ export class Game {
   private ai = new AISystem(this.world, this.movement);
   private rallyBuildingId: string | null = null;
   private idleIndex = 0;
-  private training = new TrainingSystem(this.movement);
+  private training = new TrainingSystem(this.movement, bus);
+  private progression = new ProgressionSystem(bus);
   private villagers = new VillagerSystem(this.movement);
   private gather = new GatherSystem(this.movement, bus);
   private army = new ArmySystem(this.movement);
   private combat = new CombatSystem(this.movement, bus);
-  private construction = new ConstructionSystem(bus);
+  private construction = new ConstructionSystem(bus, this.movement);
 
   constructor(
     container: HTMLElement,
@@ -179,6 +181,7 @@ export class Game {
     if (this.state.status !== 'playing') return;
     this.state.timeMs += dt;
     this.training.update(this.state, dt);
+    this.progression.update(this.state, dt);
     this.construction.update(this.state, dt);
     this.villagers.update(this.state, dt);
     this.gather.update(this.state, dt);
@@ -253,10 +256,14 @@ export class Game {
       train: (buildingId, type) => {
         notify(queueTraining(this.state, buildingId, type) ? 'Formation ajoutée à la file' : 'Formation impossible : ressources ou places insuffisantes');
       },
+      age: (id) => { queueAge(this.state, id); },
+      research: (id, type) => { queueResearch(this.state, id, type); },
+      cancelResearch: (id, index) => { cancelResearch(this.state, id, index); },
       rally: (buildingId) => { this.rallyBuildingId = buildingId; this.hud.openSheet(null); notify('Touchez le sol pour fixer le ralliement'); },
       idle: () => { const idle = listIdleVillagers(this.state, PLAYER_ID); if (!idle.length) return; const v = idle[this.idleIndex++ % idle.length]; this.unitControl.selectVillager(v.id); this.cam.lookAt(v.x, v.y); },
       cancel: (buildingId, index) => { cancelTraining(this.state, buildingId, index); },
       build: (type) => this.startPlacement(type),
+      cancelConstruction: (buildingId) => { cancelConstruction(this.state, buildingId, bus); },
       upgrade: (buildingId) => {
         const res = upgradeBuilding(this.state, buildingId, bus);
         notify(res.ok ? `${BUILDINGS[this.state.buildings[buildingId].type].name} amélioré !` : res.reason);
@@ -284,6 +291,7 @@ export class Game {
     if (!type) return;
     const res = placeBuilding(this.state, this.world, type, tx, ty, PLAYER_ID, bus);
     if (!res.ok) return bus.emit('notify', { message: res.reason });
+    orderBuildingWork(this.state, this.movement, [...this.selectedIds].map(id => this.state.villagers[id]).filter(v => v !== undefined), res.building);
     bus.emit('notify', { message: `${BUILDINGS[type].name} : construction lancée` });
     this.stopPlacement();
   }

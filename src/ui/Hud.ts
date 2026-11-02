@@ -15,6 +15,7 @@ import './hud.css';
 const REFRESH_MS = 200;
 
 export interface HudActions extends ArmyActions {
+  cancelConstruction(buildingId: string): void;
   build(type: BuildingType): void;
   idle(): void;
   /** Next level for a building that has levels (town hall). */
@@ -53,7 +54,7 @@ export class Hud {
       <button class="village-card" data-act="home" title="Revenir au village">
         <span class="crest" style="--c:${hexColor(player.color)}">${gi('castle')}</span>
         <div class="village-info">
-          <b>${player.name}</b>
+          <b>${player.name}</b><small data-k="age"></small>
           <div class="pop-bar" title="Travailleurs / guerriers / places libres"><i class="workers"></i><i class="warriors"></i></div>
           <div class="pop-legend">
             <span title="Travailleurs">${gi('workers', 'c-workers')}<b data-k="workers">0</b></span>
@@ -98,7 +99,7 @@ export class Hud {
       ),
     };
     for (const sheet of Object.values(this.sheets)) sheet.onClose = () => this.openSheet(null);
-    this.selection = new SelectionCard(this.root, () => this.openSheet('army'), (id) => actions.upgrade(id), actions);
+    this.selection = new SelectionCard(this.root, () => this.openSheet('army'), (id) => actions.upgrade(id), actions, (id) => actions.cancelConstruction(id));
 
     this.root.querySelectorAll<HTMLButtonElement>('button[data-sheet]').forEach((btn) => {
       btn.addEventListener('click', () => this.openSheet(btn.dataset.sheet as SheetName));
@@ -156,6 +157,7 @@ export class Hud {
     const workers = Object.values(state.villagers).filter(x => x.ownerId === PLAYER_ID).length;
     const army = populationOf(state, PLAYER_ID) - workers;
     const cap = Math.max(1, capacityOf(state, PLAYER_ID));
+    this.set('age', v.age === 1 ? 'I · Temps des Clairières' : v.age === 2 ? 'II · Temps des Bourgs' : 'III · Temps des Marches');
     this.set('idle', String(listIdleVillagers(state, PLAYER_ID).length));
     this.set('workers', String(workers));
     this.set('warriors', String(army));
