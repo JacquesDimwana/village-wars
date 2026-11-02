@@ -74,4 +74,25 @@ export const AI = aiJson as unknown as {
   housingThreshold: number;
   personalities: Record<Personality, PersonalityDef>;
   assignment: Personality[];
+  diplomacy: DiplomacyDef;
 };
+
+export interface DiplomacyDef {
+  powerWeight: number;
+  acceptThreshold: number;
+  /** Caps (your power / their power) so a huge army can't buy every alliance. */
+  maxPowerRatio: number;
+  refusalPenalty: number;
+  proposalCooldownMs: number;
+  giftPack: Cost;
+  giftRelation: number;
+  requestPack: Cost;
+  requestCooldownMs: number;
+  requestRelationCost: number;
+  /** Stock an ally keeps for itself; it gives only above 2× this. */
+  needs: Cost;
+  reinforcementShare: number;
+  breakPenalty: number;
+  /** Convoy speed in tiles per second. */
+  convoySpeed: number;
+}

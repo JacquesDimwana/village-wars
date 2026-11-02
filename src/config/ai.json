@@ -43,5 +43,32 @@
     "aggressive",
     "economic"
   ],
-  "minWorkers": 6
+  "minWorkers": 6,
+  "diplomacy": {
+    "powerWeight": 0.3,
+    "acceptThreshold": 0.5,
+    "maxPowerRatio": 3,
+    "refusalPenalty": 0.05,
+    "proposalCooldownMs": 20000,
+    "giftPack": {
+      "wood": 50,
+      "stone": 30
+    },
+    "giftRelation": 0.15,
+    "requestPack": {
+      "wood": 60,
+      "stone": 40
+    },
+    "requestCooldownMs": 45000,
+    "requestRelationCost": 0.05,
+    "needs": {
+      "wood": 80,
+      "stone": 60,
+      "ore": 20,
+      "iron": 10
+    },
+    "reinforcementShare": 0.3,
+    "breakPenalty": 0.4,
+    "convoySpeed": 3
+  }
 }

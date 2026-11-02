@@ -13,8 +13,13 @@ export function isExplored(fog: FogState, tx: number, ty: number): boolean {
   return fog.explored[chunkKey(tx, ty)]?.[indexInChunk(tx, ty)] === 1;
 }
 
-/** Marks every tile within `radius` of (cx, cy) as explored. Returns how many tiles were new. */
-export function reveal(fog: FogState, cx: number, cy: number, radius: number): number {
+/** True when the tile is in the player's current vision (buildings + warriors). */
+export function isVisible(fog: FogState, tx: number, ty: number): boolean {
+  return fog.visible[chunkKey(tx, ty)]?.[indexInChunk(tx, ty)] === 1;
+}
+
+/** Sets every tile within `radius` of (cx, cy) to 1 in `layer`. Returns how many tiles were new. */
+function paint(layer: Record<string, Uint8Array>, cx: number, cy: number, radius: number): number {
   const r = Math.floor(radius);
   const r2 = radius * radius;
   let added = 0;
@@ -24,7 +29,7 @@ export function reveal(fog: FogState, cx: number, cy: number, radius: number): n
       const dy = ty + 0.5 - cy;
       if (dx * dx + dy * dy > r2) continue;
       const key = chunkKey(tx, ty);
-      const bits = (fog.explored[key] ??= new Uint8Array(CHUNK * CHUNK));
+      const bits = (layer[key] ??= new Uint8Array(CHUNK * CHUNK));
       const i = indexInChunk(tx, ty);
       if (bits[i] === 0) {
         bits[i] = 1;
@@ -32,14 +37,51 @@ export function reveal(fog: FogState, cx: number, cy: number, radius: number): n
       }
     }
   }
+  return added;
+}
+
+/** Marks every tile within `radius` of (cx, cy) as explored. Returns how many tiles were new. */
+export function reveal(fog: FogState, cx: number, cy: number, radius: number): number {
+  const added = paint(fog.explored, cx, cy, radius);
   if (added > 0) fog.version++;
   return added;
+}
+
+/** Vision circles of the player's buildings and warriors: [x, y, radius]. */
+function visionSources(state: GameState): [number, number, number][] {
+  const sources: [number, number, number][] = [];
+  for (const b of Object.values(state.buildings)) {
+    if (b.ownerId !== PLAYER_ID) continue;
+    const def = BUILDINGS[b.type];
+    sources.push([b.tx + def.size / 2, b.ty + def.size / 2, def.vision]);
+  }
+  for (const u of Object.values(state.units)) {
+    if (u.ownerId === PLAYER_ID) sources.push([u.x + 0.5, u.y + 0.5, UNITS[u.type].vision]);
+  }
+  return sources;
+}
+
+/**
+ * Recomputes the player's current vision. Skipped while no source changed tile
+ * (warriors walking inside a tile don't trigger work). Returns true if it was recomputed.
+ */
+export function updateVision(state: GameState): boolean {
+  const fog = state.fog;
+  const sources = visionSources(state);
+  const key = sources.map(([x, y, r]) => `${Math.floor(x * 2)},${Math.floor(y * 2)},${r}`).join(';');
+  if (key === fog.visionKey) return false;
+  fog.visionKey = key;
+  for (const bits of Object.values(fog.visible)) bits.fill(0);
+  for (const [x, y, r] of sources) paint(fog.visible, x, y, r);
+  fog.visionVersion++;
+  return true;
 }
 
 /**
  * Player exploration. Every building reveals its `vision`; producers (town hall, lumber
  * camp, quarry, mine) send their workers further over time, proportionally to staffing.
- * Warriors reveal their `vision` around them.
+ * Warriors reveal their `vision` around them. Current vision (fog of war) = `vision`
+ * of the player's buildings and warriors, recomputed when one of them changes tile.
  */
 export class FogSystem {
   update(state: GameState, dtMs: number): void {
@@ -65,5 +107,6 @@ export class FogSystem {
     for (const u of Object.values(state.units)) {
       if (u.ownerId === PLAYER_ID) reveal(fog, u.x + 0.5, u.y + 0.5, UNITS[u.type].vision);
     }
+    updateVision(state);
   }
 }

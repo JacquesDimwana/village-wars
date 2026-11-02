@@ -31,5 +31,8 @@
   "startingWeapons": {
     "sword": 0,
     "bow": 0
+  },
+  "fogMask": {
+    "halfSize": 160
   }
 }

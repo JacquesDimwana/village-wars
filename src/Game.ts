@@ -7,8 +7,10 @@ import type { GameState, UnitType, WeaponType } from './core/types';
 import { RtsCamera } from './input/RtsCamera';
 import { Assets } from './render/Assets';
 import { EntityRenderer } from './render/EntityRenderer';
+import { FogMask } from './render/FogOfWar';
 import { Terrain } from './render/Terrain';
 import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
+import { DiplomacySystem } from './systems/DiplomacySystem';
 import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
 import { PopulationSystem, convertToWarrior, demobilize } from './systems/PopulationSystem';
@@ -34,6 +36,7 @@ export class Game {
   readonly terrain: Terrain;
   private hud: Hud;
   private minimap: Minimap;
+  private fogMask: FogMask;
   private shadowDistance = 0;
   private sun: THREE.DirectionalLight;
   private timer = new THREE.Timer();
@@ -43,6 +46,7 @@ export class Game {
   private economy = new EconomySystem(bus);
   private armory = new ArmorySystem(bus);
   private fog = new FogSystem();
+  private diplomacy = new DiplomacySystem(bus);
 
   constructor(
     container: HTMLElement,
@@ -81,6 +85,7 @@ export class Game {
     const half = BUILDINGS.townHall.size / 2;
     const home = hall ? { x: hall.tx + half, y: hall.ty + half } : { x: 0, y: 0 };
     this.cam.lookAt(home.x, home.y + 1);
+    this.fogMask = new FogMask(home);
     this.cam.onTap = (ndc) => this.handleTap(ndc);
 
     this.hud = new Hud(document.body, () => this.state, bus, this.hudActions(home));
@@ -114,6 +119,7 @@ export class Game {
     this.sun.position.set(t.x - 18, 30, t.z + 10);
     this.sun.target.position.copy(t);
     this.followZoom();
+    this.fogMask.update(this.state.fog);
     this.entities.sync(this.state, dt);
     this.hud.update();
     this.minimap.update(performance.now());
@@ -128,11 +134,11 @@ export class Game {
     this.economy.update(this.state, dt);
     this.armory.update(this.state, dt);
     this.fog.update(this.state, dt);
+    this.diplomacy.update(this.state, dt);
     // TODO(agent A) construction.update(this.state, dt)
     // TODO(agent B) movement
     // TODO(agent C) combat
     // TODO(agent D) ai
-    // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
   }
 
   /** Keeps distance fog and the shadow area proportional to the zoom so dezooming stays readable. */

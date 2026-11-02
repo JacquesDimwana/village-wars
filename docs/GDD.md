@@ -24,8 +24,11 @@ hôtels de ville ennemis avant que le sien tombe.
 - Le joueur spawn en (0,0). Les 5 villages IA spawn sur un cercle de rayon
   `aiSpawnRadius` tuiles (voir `game.json`), angles espacés + jitter, sur tuile
   constructible. Une zone de 5×5 autour de chaque hôtel de ville est forcée en `grass`.
-- **Brouillard de guerre** : seules les tuiles dans le rayon de vision des unités et
-  bâtiments du joueur sont visibles ; les tuiles déjà vues restent grisées.
+- **Brouillard de guerre** : seules les tuiles dans le rayon `vision` des unités et
+  bâtiments du joueur sont **en vision** (couleurs normales) ; les tuiles explorées mais
+  hors vision sont grisées ; les tuiles jamais explorées sont sombres. Les guerriers
+  ennemis hors vision ne sont pas affichés ; les bâtiments ennemis restent affichés tels
+  qu'ils ont été vus la dernière fois (grisés) une fois découverts.
 - **Exploration** : au départ, la carte est inconnue (grisée sur la mini-carte). Chaque
   bâtiment du joueur découvre les tuiles dans son rayon `vision`. Les bâtiments de
   production (hôtel de ville, camp de bûcherons, carrière, mine) envoient leurs
@@ -139,14 +142,24 @@ Puissance d'armée = somme de (PV × attaque) des unités militaires.
 
 ## 9. Diplomatie / alliances
 
-Actions possibles vers chaque village IA connu (découvert dans le brouillard) :
+Actions possibles vers chaque village IA connu (découvert dans le brouillard). Réglages
+dans `ai.json` → `diplomacy`. Relation entre deux villages : de -1 à 1, symétrique.
 
 - **Proposer une alliance** : accepté si `score = baseAcceptance[personnalité] +
-  (ta puissance / sa puissance) × 0.3 - relationsNégatives` > 0.5
-- **Envoyer des ressources** : +relation, un convoi traverse la map
-- **Demander des ressources** : un allié accepte si son stock dépasse 2× ses besoins
-- **Demander des renforts** : un allié envoie 30 % de son armée vers ta cible
-- **Rompre l'alliance**
+  min(ta puissance / sa puissance, maxPowerRatio) × 0.3 + relation` > 0.5
+  (une relation négative fait baisser le score, une bonne relation l'augmente ; si les
+  deux armées sont vides, le rapport vaut 1). Un refus baisse un peu la relation et
+  bloque une nouvelle demande pendant `proposalCooldownMs`.
+- **Envoyer des ressources** (paquet `giftPack`) : un convoi traverse la map en ligne
+  droite jusqu'à l'hôtel de ville cible ; à l'arrivée, ressources livrées et
+  +relation (`giftRelation`).
+- **Demander des ressources** (paquet `requestPack`, alliés seulement) : l'allié accepte
+  si, pour chaque ressource demandée, son stock dépasse 2× ses besoins (`needs`) et qu'il
+  lui reste ses besoins après l'envoi ; il envoie un convoi. Délai `requestCooldownMs`.
+- **Demander des renforts** (alliés seulement) : l'allié envoie 30 %
+  (`reinforcementShare`, arrondi au supérieur) de son armée vers ta cible (par défaut
+  ton hôtel de ville).
+- **Rompre l'alliance** : la relation baisse de `breakPenalty`.
 
 Les alliés ne s'attaquent pas. Une alliance n'empêche pas la victoire : à la fin, il
 faut que tous les hôtels de ville **non alliés** soient détruits ; si seuls des alliés

@@ -3,6 +3,7 @@ import { hash2 } from '../core/rng';
 import type { TileType } from '../core/types';
 import type { WorldGen } from '../world/WorldGen';
 import { NATURE, type Assets, type MeshPart } from './Assets';
+import { fogMaterial } from './FogOfWar';
 
 /** Top height of each tile type (world units, 1 tile = 1 unit). */
 export const TILE_HEIGHT: Record<TileType, number> = {
@@ -37,7 +38,7 @@ export class Terrain {
   readonly root = new THREE.Group();
   private chunks = new Map<string, Chunk>();
   private box = new THREE.BoxGeometry(1, 1, 1);
-  private groundMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  private groundMat = fogMaterial(new THREE.MeshLambertMaterial({ color: 0xffffff }));
   private treeParts: MeshPart[][];
   private rockParts: MeshPart[][];
   private oreParts: MeshPart[][];
@@ -57,11 +58,12 @@ export class Terrain {
         return { geometry: p.geometry, material: mat };
       }),
     );
+    for (const parts of [...this.treeParts, ...this.rockParts, ...this.oreParts]) for (const p of parts) fogMaterial(p.material);
 
     // One big translucent water plane following the camera.
     this.water = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
-      new THREE.MeshLambertMaterial({ color: 0x4aa3d8, transparent: true, opacity: 0.82 }),
+      fogMaterial(new THREE.MeshLambertMaterial({ color: 0x4aa3d8, transparent: true, opacity: 0.82 })),
     );
     this.water.position.y = -0.12;
     this.water.receiveShadow = true;

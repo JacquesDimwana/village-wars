@@ -84,6 +84,7 @@ export interface GameState {
   depletion: Record<string, number>;
   /** Tiles explored by the player (minimap / fog of war). */
   fog: FogState;
+  diplomacy: DiplomacyState;
   status: 'playing' | 'won' | 'lost';
 }
 
@@ -94,4 +95,33 @@ export interface FogState {
   radius: Record<string, number>;
   /** Incremented whenever new tiles get explored, so renderers can skip redraws. */
   version: number;
+  /** Tiles currently in the player's vision (1 = visible), same layout as `explored`. */
+  visible: Record<string, Uint8Array>;
+  /** Incremented whenever the set of visible tiles may have changed. */
+  visionVersion: number;
+  /** Signature of the last vision sources, to skip recomputing when nothing moved. */
+  visionKey: string;
+}
+
+/** Resources travelling between two villages (gift or answered request). */
+export interface Convoy {
+  id: string;
+  fromId: string;
+  toId: string;
+  resources: Cost;
+  /** Current position and destination, tile coordinates. */
+  x: number;
+  y: number;
+  destX: number;
+  destY: number;
+  /** True when it is a gift (raises the relation on arrival). */
+  gift: boolean;
+}
+
+export interface DiplomacyState {
+  convoys: Convoy[];
+  /** Earliest time (state.timeMs) for the next action. Key: "action:fromId>toId". */
+  cooldowns: Record<string, number>;
+  /** Set once "Il ne peut en rester qu'un" fired: no more alliances. */
+  lastStanding: boolean;
 }
