@@ -185,7 +185,7 @@ ramène au camp où ils redeviennent comptés sans être dessinés.
 ## 7. Contrôles (tactile)
 
 - Glisser 1 doigt sur le vide : déplacer la caméra
-- Pincer : zoom (distance caméra 10 à 44)
+- Pincer : zoom (distance caméra 10 à 90 ; au-delà de ≈ 45, vue stratégique allégée : décor simplifié au loin)
 - Tap sur un guerrier ou un villageois : sélection (anneau jaune au sol) ; tap long +
   glisser : sélection en rectangle (guerriers et villageois du joueur). Une barre en bas
   au centre résume la sélection (« 🛡️ 4 · 👷 2 ») avec ✕ pour désélectionner.
@@ -204,6 +204,7 @@ ramène au camp où ils redeviennent comptés sans être dessinés.
   ajouter à la sélection.
 - Clic droit : donner l'ordre à la sélection (déplacer, récolter, affecter, partir en
   guerre) ; sans sélection, il ne fait rien.
+- Trackpad (Mac) : glisser à deux doigts = déplacer la carte ; pincer = zoom.
 - Déplacer la caméra : glisser avec le clic du milieu (ou clic droit maintenu), flèches /
   ZQSD / WASD, ou souris au bord de l'écran (plein écran seulement). Molette : zoom
   centré sur le curseur.

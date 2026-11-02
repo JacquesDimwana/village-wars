@@ -218,12 +218,28 @@ export class RtsCamera {
     this.boxShift = false;
   }
 
-  /** Zoom centered on the cursor: the ground point under the cursor stays under it. */
+  /**
+   * Mouse wheel = zoom centered on the cursor (the ground point under it stays under it).
+   * Mac trackpad: pinch arrives as a wheel event with ctrlKey (zoom), two-finger swipe as
+   * smooth pixel deltas (pan, like dragging on a phone).
+   */
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault();
+    if (!e.ctrlKey && isTrackpadSwipe(e)) {
+      // Same as a finger drag from the cursor by -delta: the map follows the fingers.
+      const a = this.groundPoint(this.toNdc(e.clientX, e.clientY));
+      const b = this.groundPoint(this.toNdc(e.clientX - e.deltaX, e.clientY - e.deltaY));
+      if (a && b) {
+        this.target.add(a.sub(b));
+        this.apply();
+      }
+      return;
+    }
     const ndc = this.toNdc(e.clientX, e.clientY);
     const before = this.groundPoint(ndc);
-    this.setZoomDistance(this.distance * Math.exp(THREE.MathUtils.clamp(e.deltaY, -100, 100) * 0.0012));
+    // Pinch deltas are small: amplify them so a pinch zooms about as fast as a wheel notch.
+    const delta = e.ctrlKey ? e.deltaY * 8 : e.deltaY;
+    this.setZoomDistance(this.distance * Math.exp(THREE.MathUtils.clamp(delta, -100, 100) * 0.0012));
     const after = this.groundPoint(ndc);
     if (before && after) {
       this.target.add(before.sub(after));
@@ -358,4 +374,14 @@ export class RtsCamera {
     const [a, b] = [...this.pointers.values()];
     return Math.hypot(a.x - b.x, a.y - b.y) || 1;
   }
+}
+
+/**
+ * Trackpads send pixel deltas, often fractional or horizontal; mouse wheels send
+ * line / page steps or large whole-pixel notches with no horizontal part.
+ */
+function isTrackpadSwipe(e: WheelEvent): boolean {
+  if (e.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) return false;
+  if (e.deltaX !== 0) return true;
+  return !Number.isInteger(e.deltaY) || Math.abs(e.deltaY) < 40;
 }
