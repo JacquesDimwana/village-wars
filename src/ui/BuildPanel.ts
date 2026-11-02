@@ -7,7 +7,7 @@ import { Sheet, setHtml } from './Sheet';
 
 const CATEGORIES: { id: string; label: string; types: BuildingType[] }[] = [
   { id: 'eco', label: `${gi('wood')} Économie`, types: ['house', 'lumberCamp', 'quarry', 'mine', 'smelter'] },
-  { id: 'army', label: `${gi('army')} Armée`, types: ['armory', 'barracks'] },
+  { id: 'army', label: `${gi('army')} Armée`, types: ['armory', 'barracks', 'armyCamp'] },
   { id: 'defense', label: `${gi('tower')} Défense`, types: ['tower'] },
 ];
 

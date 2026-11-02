@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BUILDINGS } from '../core/config';
-import type { Building, GameState, Unit } from '../core/types';
+import type { Building, GameState } from '../core/types';
 import type { Assets } from './Assets';
 import { teamStyle } from './teams';
 
@@ -12,38 +12,21 @@ interface BuildingView {
   hpFill: THREE.Mesh;
 }
 
-interface UnitView {
-  root: THREE.Group;
-  mixer: THREE.AnimationMixer;
-  actions: Map<string, THREE.AnimationAction>;
-  current?: THREE.AnimationAction;
-  last: THREE.Vector2;
-}
-
-/** Animation clip names per state (KayKit Adventurers rig). */
-const ANIM = {
-  knight: { idle: 'Idle', walk: 'Walking_A', attack: '1H_Melee_Attack_Chop' },
-  archer: { idle: '2H_Ranged_Aiming', walk: 'Walking_B', attack: '2H_Ranged_Shoot' },
-} as const;
-
 /**
- * Mirrors GameState buildings/units into the 3D scene.
+ * Mirrors GameState buildings into the 3D scene (soldiers and villagers: CrowdRenderer).
  * No game rules here: it only reads state.
  */
 export class EntityRenderer {
   readonly root = new THREE.Group();
   private buildings = new Map<string, BuildingView>();
-  private units = new Map<string, UnitView>();
-  private ringGeo = new THREE.RingGeometry(0.22, 0.3, 24).rotateX(-Math.PI / 2);
   private barGeo = new THREE.PlaneGeometry(1, 0.08);
   /** Same plane with its origin on the left edge, so scaling x shrinks it from the right. */
   private fillGeo = new THREE.PlaneGeometry(1, 0.08).translate(0.5, 0, 0);
 
   constructor(private assets: Assets) {}
 
-  sync(state: GameState, dtSec: number): void {
+  sync(state: GameState): void {
     this.syncBuildings(state);
-    this.syncUnits(state, dtSec);
   }
 
   /** Building root objects, for tap raycasting. userData.buildingId is set on each. */
@@ -112,73 +95,8 @@ export class EntityRenderer {
     const size = BUILDINGS[b.type].size;
     if (!completed) return this.assets.neutral('building_scaffolding', size * 0.85);
     const style = teamStyle(b.ownerId);
+    if (b.type === 'armyCamp') return this.assets.armyCamp(style.kaykit, style.tint);
     const variant = Number(b.id.split('-')[1]) || 0;
     return this.assets.building(b.type, style.kaykit, variant, size * 0.95, style.tint);
-  }
-
-  private syncUnits(state: GameState, dtSec: number): void {
-    for (const u of Object.values(state.units)) {
-      let view = this.units.get(u.id);
-      if (!view) {
-        view = this.createUnit(u);
-        this.units.set(u.id, view);
-        this.root.add(view.root);
-      }
-      const dx = u.x - view.last.x;
-      const dz = u.y - view.last.y;
-      const moving = Math.hypot(dx, dz) > 0.0005;
-      if (moving) view.root.rotation.y = Math.atan2(dx, dz);
-      view.root.position.set(u.x + 0.5, 0, u.y + 0.5);
-      view.last.set(u.x, u.y);
-      this.play(view, moving ? ANIM[u.type].walk : ANIM[u.type].idle);
-      view.mixer.update(dtSec);
-    }
-    for (const [id, view] of this.units) {
-      if (state.units[id]) continue;
-      this.root.remove(view.root);
-      view.mixer.stopAllAction();
-      this.units.delete(id);
-    }
-  }
-
-  private createUnit(u: Unit): UnitView {
-    const asset = this.assets.character(u.type);
-    const model = this.assets.cloneCharacter(u.type);
-    model.scale.setScalar(asset.baseScale * (u.type === 'knight' ? 1.1 : 1));
-    const root = new THREE.Group();
-    root.add(model);
-    root.userData.unitId = u.id;
-
-    const ring = new THREE.Mesh(
-      this.ringGeo,
-      new THREE.MeshBasicMaterial({ color: teamStyle(u.ownerId).marker, transparent: true, opacity: 0.9 }),
-    );
-    ring.position.y = 0.02;
-    root.add(ring);
-
-    const mixer = new THREE.AnimationMixer(model);
-    const actions = new Map<string, THREE.AnimationAction>();
-    for (const clip of asset.clips) actions.set(clip.name, mixer.clipAction(clip));
-    root.position.set(u.x + 0.5, 0, u.y + 0.5);
-    const view: UnitView = { root, mixer, actions, last: new THREE.Vector2(u.x, u.y) };
-    this.play(view, ANIM[u.type].idle);
-    // Desync idle loops so a group of units doesn't move in lockstep.
-    mixer.update(Math.random() * 2);
-    return view;
-  }
-
-  /** Cross-fades to an animation by name (no-op if already playing). */
-  play(view: UnitView, name: string): void {
-    const next = view.actions.get(name);
-    if (!next || next === view.current) return;
-    next.reset().fadeIn(0.2).play();
-    view.current?.fadeOut(0.2);
-    view.current = next;
-  }
-
-  /** Plays the attack animation on a unit (used by the combat system later). */
-  attack(unitId: string, type: Unit['type']): void {
-    const view = this.units.get(unitId);
-    if (view) this.play(view, ANIM[type].attack);
   }
 }

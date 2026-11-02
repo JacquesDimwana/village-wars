@@ -30,7 +30,7 @@ describe('Housing & population', () => {
   it('inhabitants grow until housing is full', () => {
     const { state, player } = setup();
     const pop = new PopulationSystem();
-    const secondsToFill = 2 / RESOURCES.population.growthPerSecond; // 3 → 5
+    const secondsToFill = 2 / RESOURCES.population.baseGrowthPerSecond; // 3 → 5, no house yet
     for (let i = 0; i < secondsToFill * 10 + 50; i++) pop.update(state, 100);
     expect(civilians(state, PLAYER_ID)).toBe(5);
     expect(player.inhabitants).toBe(5);
@@ -50,6 +50,7 @@ describe('Housing & population', () => {
 describe('Conversion civilian → warrior', () => {
   it('needs a barracks, a civilian and the right weapon', () => {
     const { state, player } = setup();
+    player.founders = 0; // starting workers are covered in founders tests
     player.weapons.sword = 1;
     expect(convertToWarrior(state, PLAYER_ID, 'knight')).toBe('no-barracks');
     addBuilding(state, 'barracks', PLAYER_ID, 6, 6, true);
@@ -60,6 +61,7 @@ describe('Conversion civilian → warrior', () => {
 
   it('converting a worker lowers production; demobilizing restores it', () => {
     const { state, player } = setup();
+    player.founders = 0; // starting workers are covered in founders tests
     addBuilding(state, 'lumberCamp', PLAYER_ID, 5, 5, true);
     addBuilding(state, 'barracks', PLAYER_ID, 9, 9, true);
     player.inhabitants = 3;

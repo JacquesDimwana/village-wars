@@ -1070,3 +1070,28 @@ body.sheet-open .minimap,
 .btn.green:active:not(:disabled) {
   border-image-source: var(--k-btn-wood-pressed);
 }
+
+/* ---------- Desktop / large screens: fixed readable sizes, centered panels ---------- */
+@media (min-width: 1100px) {
+  .sheet {
+    left: 0;
+    right: 0;
+    width: min(980px, calc(100% - var(--safe-left) - var(--safe-right)));
+    margin: 0 auto;
+    max-height: min(64vh, 620px);
+  }
+
+  .selection {
+    width: 340px;
+  }
+
+  .toast {
+    font-size: 15px;
+  }
+}
+
+@media (min-width: 1100px) and (pointer: fine) {
+  .hud button {
+    cursor: pointer;
+  }
+}

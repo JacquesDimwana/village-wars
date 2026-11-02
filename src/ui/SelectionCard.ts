@@ -1,14 +1,17 @@
 import { BUILDINGS } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import type { GameState, ResourceType } from '../core/types';
+import { campDisplay } from '../systems/ArmySystem';
 import { assignWorkers, staffing } from '../systems/PopulationSystem';
-import { BUILDING_UI, RESOURCE_UI, gi, hexColor } from './icons';
+import { BUILDING_UI, RESOURCE_UI, UNIT_UI, gi, hexColor } from './icons';
 import { setHtml } from './Sheet';
 
 /** Info card (bottom center) for the tapped building. */
 export class SelectionCard {
   private el: HTMLElement;
   buildingId: string | null = null;
+  /** "Partir en guerre" on an army camp (set by UnitControl). */
+  onWar: (campId: string) => void = () => {};
 
   constructor(
     parent: HTMLElement,
@@ -21,6 +24,7 @@ export class SelectionCard {
       const t = e.target as HTMLElement;
       if (t.closest('.close')) this.select(null);
       else if (t.closest('[data-act="army"]')) this.onArmy();
+      else if (t.closest('[data-act="war"]') && this.buildingId) this.onWar(this.buildingId);
     });
   }
 
@@ -51,11 +55,18 @@ export class SelectionCard {
         const ui = RESOURCE_UI.find((r) => r.key === res)!;
         lines.push(`<div class="stat">${ui.icon} +${(rate * ratio).toFixed(1)}/s <small>(max ${rate}/s)</small></div>`);
       }
+      if (b.type === 'armyCamp') {
+        const d = campDisplay(state, b.id);
+        lines.push(`<div class="stat">${UNIT_UI.knight.icon} chevaliers ×${d.byType.knight} · ${UNIT_UI.archer.icon} archers ×${d.byType.archer}</div>`);
+        lines.push(`<div class="stat"><b>${d.total}</b> soldat${d.total > 1 ? 's' : ''} au camp</div>`);
+      }
       if (def.population) lines.push(`<div class="stat">${gi('house')} +${def.population * b.level} places</div>`);
     }
-    const armyBtn = mine && b.buildProgress >= 1 && (def.forges || def.converts)
+    const done = mine && b.buildProgress >= 1;
+    const armyBtn = done && (def.forges || def.converts || b.type === 'armyCamp')
       ? `<button class="btn green" data-act="army">${def.forges ? `${gi('armory')} Forger des armes` : `${gi('army')} Former des troupes`}</button>`
       : '';
+    const warBtn = done && b.type === 'armyCamp' ? `<button class="btn blue" data-act="war">${gi('sword')} Partir en guerre</button>` : '';
 
     setHtml(this.el, `
       <button class="close" aria-label="Fermer">✕</button>
@@ -65,7 +76,7 @@ export class SelectionCard {
         <span class="owner" style="--c:${hexColor(owner.color)}">${owner.name}</span></div>
       </div>
       ${lines.join('')}
-      ${armyBtn}`);
+      <div class="sel-btns">${armyBtn}${warBtn}</div>`);
   }
 }
 

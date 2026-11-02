@@ -24,6 +24,8 @@ export interface BuildingDef {
   attackRange?: number;
   attackCooldownMs?: number;
   levels?: { level: number; cost: Cost; hpBonus?: number; population?: number }[];
+  /** Army camp: soldier figurines drawn at most (the rest are only counted). */
+  visibleSoldiers?: number;
 }
 
 export interface UnitDef {

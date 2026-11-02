@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
-import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import type { BuildingType, UnitType } from '../core/types';
 import type { KayKitColor } from './teams';
+import { bakeCharacter, type BakeSpec, type VatModel } from './VatBaker';
 
 const BASE = `${import.meta.env.BASE_URL}models/`;
 const COLORS: KayKitColor[] = ['blue', 'red', 'green', 'yellow'];
@@ -20,6 +20,8 @@ export const BUILDING_MODELS: Record<BuildingType, string[]> = {
   barracks: ['barracks'],
   armory: ['blacksmith'],
   tower: ['tower_A'],
+  /** No KayKit model: composed in Assets.armyCamp(). */
+  armyCamp: [],
 };
 
 export const NATURE = {
@@ -35,15 +37,60 @@ export const CHARACTER_FILES: Record<UnitType, string> = {
   archer: 'characters/Rogue_Hooded.glb',
 };
 
-/** Weapon/prop meshes to keep visible on each character (the rest are hidden). */
-const CHARACTER_KEEP: Record<UnitType, string[]> = {
-  knight: ['1H_Sword', 'Round_Shield'],
-  archer: ['2H_Crossbow'],
-};
-const CHARACTER_PROPS: Record<UnitType, string[]> = {
+const PROPS: Record<UnitType, string[]> = {
   knight: ['1H_Sword_Offhand', 'Badge_Shield', 'Rectangle_Shield', 'Round_Shield', 'Spike_Shield', '1H_Sword', '2H_Sword'],
   archer: ['Knife_Offhand', '1H_Crossbow', '2H_Crossbow', 'Knife', 'Throwable'],
 };
+
+/** Crowd models drawn with vertex animation textures (see VatBaker / CrowdRenderer). */
+export type CrowdModelKind = 'knight' | 'archer' | 'villager';
+
+const CHARACTER_HEIGHT = 0.85;
+const CROWD_SPECS: Record<CrowdModelKind, { file: string; spec: BakeSpec }> = {
+  knight: {
+    file: CHARACTER_FILES.knight,
+    spec: {
+      props: PROPS.knight,
+      keep: ['1H_Sword', 'Round_Shield'],
+      height: CHARACTER_HEIGHT * 1.1,
+      clips: [
+        { name: 'idle', clip: 'Idle', frames: 4 },
+        { name: 'walk', clip: 'Walking_A', frames: 8 },
+        { name: 'attack', clip: '1H_Melee_Attack_Chop', frames: 6 },
+      ],
+    },
+  },
+  archer: {
+    file: CHARACTER_FILES.archer,
+    spec: {
+      props: PROPS.archer,
+      keep: ['2H_Crossbow'],
+      height: CHARACTER_HEIGHT,
+      clips: [
+        { name: 'idle', clip: '2H_Ranged_Aiming', frames: 3 },
+        { name: 'walk', clip: 'Walking_B', frames: 8 },
+        { name: 'attack', clip: '2H_Ranged_Shoot', frames: 6 },
+      ],
+    },
+  },
+  villager: {
+    file: CHARACTER_FILES.archer,
+    spec: {
+      props: PROPS.archer,
+      keep: [],
+      optional: ['Knife'],
+      hide: ['Rogue_Cape'],
+      height: CHARACTER_HEIGHT,
+      clips: [
+        { name: 'idle', clip: 'Idle', frames: 4 },
+        { name: 'walk', clip: 'Walking_A', frames: 8 },
+        { name: 'work', clip: '1H_Melee_Attack_Chop', frames: 6 },
+      ],
+    },
+  },
+};
+
+const DIRT = 0x9a7b52;
 
 /** A static model flattened into geometry+material parts (for InstancedMesh). */
 export interface MeshPart {
@@ -51,17 +98,10 @@ export interface MeshPart {
   material: THREE.Material;
 }
 
-export interface CharacterAsset {
-  scene: THREE.Object3D;
-  clips: THREE.AnimationClip[];
-  /** Scale that makes the character `height` tiles tall. */
-  baseScale: number;
-}
-
 /** Loads every model once at startup and hands out clones. */
 export class Assets {
   private gltfs = new Map<string, GLTF>();
-  private characters = new Map<UnitType, CharacterAsset>();
+  private crowd = new Map<CrowdModelKind, VatModel>();
   private loader = new GLTFLoader();
 
   async loadAll(onProgress: (ratio: number) => void): Promise<void> {
@@ -83,12 +123,15 @@ export class Assets {
         this.gltfs.set(f, await this.loader.loadAsync(BASE + f));
         tick();
       }),
-      ...(Object.entries(CHARACTER_FILES) as [UnitType, string][]).map(async ([type, f]) => {
-        const gltf = await this.loader.loadAsync(BASE + f);
-        this.prepareCharacter(type, gltf);
+      ...charFiles.map(async (f) => {
+        this.gltfs.set(f, await this.loader.loadAsync(BASE + f));
         tick();
       }),
     ]);
+    for (const [kind, { file, spec }] of Object.entries(CROWD_SPECS) as [CrowdModelKind, (typeof CROWD_SPECS)[CrowdModelKind]][]) {
+      const gltf = this.require(file);
+      this.crowd.set(kind, bakeCharacter(gltf.scene, gltf.animations, spec));
+    }
   }
 
   /** Clone of a building model, scaled to fit `footprint` tiles, base at y=0, centered. */
@@ -131,26 +174,45 @@ export class Assets {
     return parts;
   }
 
-  character(type: UnitType): CharacterAsset {
-    const c = this.characters.get(type);
-    if (!c) throw new Error(`Character not loaded: ${type}`);
-    return c;
+  /** Baked (VAT) crowd model: one geometry + animated vertex textures. */
+  crowdModel(kind: CrowdModelKind): VatModel {
+    const m = this.crowd.get(kind);
+    if (!m) throw new Error(`Crowd model not baked: ${kind}`);
+    return m;
   }
 
-  cloneCharacter(type: UnitType): THREE.Object3D {
-    return SkeletonUtils.clone(this.character(type).scene);
-  }
-
-  private prepareCharacter(type: UnitType, gltf: GLTF): void {
-    const keep = new Set(CHARACTER_KEEP[type]);
-    const props = new Set(CHARACTER_PROPS[type]);
-    gltf.scene.traverse((o) => {
-      if (props.has(o.name)) o.visible = keep.has(o.name);
-      if ((o as THREE.Mesh).isMesh) o.castShadow = true;
-    });
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const height = box.max.y - box.min.y || 1;
-    this.characters.set(type, { scene: gltf.scene, clips: gltf.animations, baseScale: 0.85 / height });
+  /**
+   * Army camp (4x4, no KayKit model): beaten-earth yard, team flags at the corners,
+   * a few lumber / stone piles and rocks as decoration. Centered, base at y=0.
+   */
+  armyCamp(color: KayKitColor, tint?: THREE.Color): THREE.Object3D {
+    const root = new THREE.Group();
+    const yard = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.8, 3.8).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: DIRT, roughness: 1 }),
+    );
+    yard.position.y = 0.015;
+    yard.receiveShadow = true;
+    root.add(yard);
+    for (const [x, z] of [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]]) {
+      const flag = this.flag(color, tint);
+      flag.position.set(x, 0, z);
+      root.add(flag);
+    }
+    const decor: [string, number, number, number, number][] = [
+      ['resource_lumber', 0.9, -1.15, 1.25, 0.3],
+      ['resource_stone', 0.6, 1.2, -1.2, 1.2],
+      ['rock_single_A', 0.35, -1.55, 0.4, 0],
+      ['rock_single_C', 0.3, 1.55, 0.6, 0],
+      ['rock_single_E', 0.3, 0.2, -1.6, 0],
+    ];
+    for (const [name, size, x, z, rot] of decor) {
+      const o = this.neutral(name, size);
+      o.position.set(x, 0, z);
+      o.rotation.y = rot;
+      root.add(o);
+    }
+    return root;
   }
 
   /** Scales to fit `footprint` tiles wide, but never taller than `footprint * MAX_HEIGHT_RATIO`. */

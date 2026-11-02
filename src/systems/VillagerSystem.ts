@@ -1,4 +1,4 @@
-import { BUILDINGS, VILLAGER } from '../core/config';
+import { BUILDINGS, GAME, VILLAGER } from '../core/config';
 import { nextId, townHallOf } from '../core/GameState';
 import { hash2 } from '../core/rng';
 import type { Building, GameState, ResourceType, TilePos, Villager } from '../core/types';
@@ -14,15 +14,20 @@ const RESOURCE_TILE = Object.fromEntries(
 const SPREAD = 4;
 
 const idNum = (id: string): number => Number(id.split('-')[1]) || 0;
+const isOrdered = (v: Villager): boolean => v.harvest !== null || v.task === 'goto';
 
-/** Villager slot priority when one must leave (converted into a warrior): jobless first, then town hall workers. */
+/**
+ * Who leaves first when a civilian becomes a warrior: never a starting worker if
+ * avoidable, then jobless, town hall workers, other workers, player-ordered villagers.
+ */
 function removalScore(state: GameState, v: Villager): number {
+  if (!v.enlistable) return 10;
   if (v.harvest || v.pinnedJobId) return 3;
   if (!v.jobId) return 0;
   return state.buildings[v.jobId]?.type === 'townHall' ? 1 : 2;
 }
 
-export function spawnVillager(state: GameState, ownerId: string, x: number, y: number): Villager {
+export function spawnVillager(state: GameState, ownerId: string, x: number, y: number, enlistable = true): Villager {
   const v: Villager = {
     id: nextId(state, 'v'),
     ownerId,
@@ -36,9 +41,25 @@ export function spawnVillager(state: GameState, ownerId: string, x: number, y: n
     target: null,
     timerMs: 0,
     carrying: null,
+    enlistable,
+    inside: false,
   };
   state.villagers[v.id] = v;
   return v;
+}
+
+/**
+ * A villager dies (combat): one inhabitant less. Starting workers are not replaced:
+ * newborn civilians are always enlistable.
+ */
+export function killVillager(state: GameState, villagerId: string): void {
+  const v = state.villagers[villagerId];
+  if (!v) return;
+  const village = state.villages[v.ownerId];
+  delete state.villagers[villagerId];
+  if (!village) return;
+  village.inhabitants = Math.max(0, village.inhabitants - 1);
+  if (!v.enlistable) village.founders = Math.max(0, village.founders - 1);
 }
 
 /** Player order: pin villagers to a production building (they get its slots first). Returns how many were pinned. */
@@ -103,9 +124,10 @@ export class VillagerSystem {
       }
       this.syncCount(state, village.id, mine);
       this.assignJobs(state, village.id);
+      this.applyCrowdCap(state, village.id);
     }
     for (const v of Object.values(state.villagers)) {
-      if (!v.harvest) this.autoWork(state, v, dtMs);
+      if (!v.harvest && !v.inside) this.autoWork(state, v, dtMs);
     }
   }
 
@@ -122,8 +144,37 @@ export class VillagerSystem {
       const size = BUILDINGS.townHall.size;
       const door = this.movement.freeTilesAround(state, hall.tx + Math.floor(size / 2), hall.ty + size, 1)[0];
       const at = door ?? { tx: hall.tx, ty: hall.ty + size };
-      for (let i = mine.length; i < want; i++) spawnVillager(state, villageId, at.tx, at.ty);
+      let founders = mine.filter((v) => !v.enlistable).length;
+      const target = state.villages[villageId].founders;
+      for (let i = mine.length; i < want; i++) {
+        spawnVillager(state, villageId, at.tx, at.ty, founders >= target);
+        founders++;
+      }
     }
+  }
+
+  /**
+   * Crowd cap: only `GAME.villagers.maxVisible` villagers per village walk around;
+   * the others work "inside" their building (counted, not drawn, not simulated).
+   * Manual orders always stay visible; starting workers (oldest ids) come next.
+   */
+  private applyCrowdCap(state: GameState, villageId: string): void {
+    const list = Object.values(state.villagers)
+      .filter((v) => v.ownerId === villageId)
+      .sort((a, b) => Number(!isOrdered(a)) - Number(!isOrdered(b)) || idNum(a.id) - idNum(b.id));
+    list.forEach((v, i) => {
+      const inside = i >= GAME.villagers.maxVisible && !isOrdered(v);
+      if (inside === v.inside) return;
+      v.inside = inside;
+      resetTask(v);
+      if (!inside) return;
+      const home = (v.jobId && state.buildings[v.jobId]) || townHallOf(state, villageId);
+      if (home) {
+        const size = BUILDINGS[home.type].size;
+        v.x = home.tx + Math.floor(size / 2);
+        v.y = home.ty + size;
+      }
+    });
   }
 
   /** Gives each villager a concrete building matching the assignWorkers counts (stable between ticks). */
@@ -140,7 +191,7 @@ export class VillagerSystem {
       placed.add(v.id);
       if (v.jobId !== buildingId) {
         v.jobId = buildingId;
-        if (v.task !== 'goto') resetTask(v);
+        if (v.task !== 'goto' && !v.inside) resetTask(v);
       }
       return true;
     };

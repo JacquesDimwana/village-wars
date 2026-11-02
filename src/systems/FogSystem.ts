@@ -1,4 +1,4 @@
-import { BUILDINGS, GAME, UNITS } from '../core/config';
+import { BUILDINGS, GAME, UNITS, VILLAGER } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import type { FogState, GameState } from '../core/types';
 import { assignWorkers, staffing } from './PopulationSystem';
@@ -64,6 +64,10 @@ export class FogSystem {
 
     for (const u of Object.values(state.units)) {
       if (u.ownerId === PLAYER_ID) reveal(fog, u.x + 0.5, u.y + 0.5, UNITS[u.type].vision);
+    }
+    // Villagers sent away (starting workers make good scouts) discover the map too.
+    for (const v of Object.values(state.villagers)) {
+      if (v.ownerId === PLAYER_ID && !v.inside) reveal(fog, v.x + 0.5, v.y + 0.5, VILLAGER.vision);
     }
   }
 }

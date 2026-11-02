@@ -3,15 +3,21 @@ import { BUILDINGS, GAME, UNITS, WEAPONS } from './core/config';
 import { PLAYER_ID } from './core/constants';
 import { bus } from './core/EventBus';
 import { addBuilding, createGameState, townHallOf } from './core/GameState';
-import type { GameState, UnitType, WeaponType } from './core/types';
+import type { Building, GameState, UnitType, WeaponType } from './core/types';
 import { RtsCamera } from './input/RtsCamera';
+import { UnitControl } from './input/UnitControl';
 import { Assets } from './render/Assets';
+import { CrowdRenderer } from './render/CrowdRenderer';
 import { EntityRenderer } from './render/EntityRenderer';
 import { Terrain } from './render/Terrain';
 import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
 import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
+import { ArmySystem } from './systems/ArmySystem';
+import { GatherSystem } from './systems/GatherSystem';
+import { MovementSystem } from './systems/MovementSystem';
 import { PopulationSystem, convertToWarrior, demobilize } from './systems/PopulationSystem';
+import { VillagerSystem } from './systems/VillagerSystem';
 import { Hud, type HudActions } from './ui/Hud';
 import { Minimap } from './ui/Minimap';
 import { WorldGen } from './world/WorldGen';
@@ -31,7 +37,12 @@ export class Game {
   readonly scene = new THREE.Scene();
   readonly cam: RtsCamera;
   readonly entities: EntityRenderer;
+  /** Soldiers + villagers (instanced, vertex-animated). */
+  readonly crowd: CrowdRenderer;
   readonly terrain: Terrain;
+  /** Ids of the selected soldiers / villagers (owned by UnitControl). */
+  readonly selectedIds = new Set<string>();
+  unitControl!: UnitControl;
   private hud: Hud;
   private minimap: Minimap;
   private shadowDistance = 0;
@@ -43,6 +54,10 @@ export class Game {
   private economy = new EconomySystem(bus);
   private armory = new ArmorySystem(bus);
   private fog = new FogSystem();
+  readonly movement = new MovementSystem((tx, ty) => this.world.getTile(tx, ty));
+  private villagers = new VillagerSystem(this.movement);
+  private gather = new GatherSystem(this.movement, bus);
+  private army = new ArmySystem(this.movement);
 
   constructor(
     container: HTMLElement,
@@ -75,15 +90,30 @@ export class Game {
     this.cam = new RtsCamera(this.renderer.domElement, GAME.camera);
     this.terrain = new Terrain(this.world, assets, GAME.chunkSize);
     this.entities = new EntityRenderer(assets);
-    this.scene.add(this.terrain.root, this.entities.root);
+    this.crowd = new CrowdRenderer(assets, (tx, ty) => this.world.getTile(tx, ty));
+    this.scene.add(this.terrain.root, this.entities.root, this.crowd.root);
 
     const hall = townHallOf(this.state, PLAYER_ID);
     const half = BUILDINGS.townHall.size / 2;
     const home = hall ? { x: hall.tx + half, y: hall.ty + half } : { x: 0, y: 0 };
     this.cam.lookAt(home.x, home.y + 1);
-    this.cam.onTap = (ndc) => this.handleTap(ndc);
+    this.cam.onTap = (ndc, shift, mouse) => this.handleTap(ndc, shift, mouse);
 
     this.hud = new Hud(document.body, () => this.state, bus, this.hudActions(home));
+    this.unitControl = new UnitControl({
+      parent: this.hud.root,
+      canvas: this.renderer.domElement,
+      cam: this.cam,
+      bus,
+      movement: this.movement,
+      getState: () => this.state,
+      selection: this.hud.selection,
+      selectedIds: this.selectedIds,
+      hud: this.hud,
+      home: () => this.cam.lookAt(home.x, home.y + 1),
+      buildingAt: (ndc) => this.buildingAt(ndc),
+    });
+    this.unitControl.onMarker = (tiles, kind) => this.crowd.showMarker(tiles, kind === 'assign' ? 'move' : kind);
     this.minimap = new Minimap(
       document.body,
       home,
@@ -114,8 +144,10 @@ export class Game {
     this.sun.position.set(t.x - 18, 30, t.z + 10);
     this.sun.target.position.copy(t);
     this.followZoom();
-    this.entities.sync(this.state, dt);
+    this.entities.sync(this.state);
+    this.crowd.sync(this.state, dt, this.selectedIds, this.cam.distance);
     this.hud.update();
+    this.unitControl.update();
     this.minimap.update(performance.now());
     this.renderer.render(this.scene, this.cam.camera);
   }
@@ -127,9 +159,12 @@ export class Game {
     this.population.update(this.state, dt);
     this.economy.update(this.state, dt);
     this.armory.update(this.state, dt);
+    this.villagers.update(this.state, dt);
+    this.gather.update(this.state, dt);
+    this.army.update(this.state, dt);
+    this.movement.update(this.state, dt);
     this.fog.update(this.state, dt);
     // TODO(agent A) construction.update(this.state, dt)
-    // TODO(agent B) movement
     // TODO(agent C) combat
     // TODO(agent D) ai
     // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
@@ -205,16 +240,21 @@ export class Game {
     };
   }
 
-  private handleTap(ndc: THREE.Vector2): void {
+  /** Player-visible building under a screen point (raycast on the building models). */
+  private buildingAt(ndc: THREE.Vector2): Building | undefined {
     const hit = this.cam.raycast(ndc, this.entities.buildingObjects)[0];
-    if (hit) {
-      let o: THREE.Object3D | null = hit.object;
-      while (o && !o.userData.buildingId) o = o.parent;
-      const b = o ? this.state.buildings[o.userData.buildingId as string] : undefined;
-      if (b) {
-        bus.emit('building:selected', { buildingId: b.id });
-        return;
-      }
+    if (!hit) return undefined;
+    let o: THREE.Object3D | null = hit.object;
+    while (o && !o.userData.buildingId) o = o.parent;
+    return o ? this.state.buildings[o.userData.buildingId as string] : undefined;
+  }
+
+  private handleTap(ndc: THREE.Vector2, shift = false, mouse = false): void {
+    const b = this.buildingAt(ndc);
+    if (this.unitControl.handleTap(ndc, b, mouse, shift)) return;
+    if (b) {
+      bus.emit('building:selected', { buildingId: b.id });
+      return;
     }
     const p = this.cam.groundPoint(ndc);
     if (p) {

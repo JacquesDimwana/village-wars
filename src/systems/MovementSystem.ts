@@ -147,6 +147,7 @@ export class MovementSystem {
   private tileCache = new Map<number, TileType>();
   private blocked = new Set<number>();
   private blockedSignature = '';
+  private knownBuildings: string[] = [];
 
   constructor(private getTile: TileQuery) {}
 
@@ -231,6 +232,27 @@ export class MovementSystem {
     this.separate(state, movers);
   }
 
+  /**
+   * A building was placed on top of movers: each one inside its footprint steps to the
+   * nearest free tile. Called automatically when buildings change; exported for construction.
+   */
+  evictFrom(state: GameState, b: Building): number {
+    if (b.type === 'armyCamp') return 0;
+    const size = BUILDINGS[b.type].size;
+    let moved = 0;
+    for (const m of [...Object.values(state.units), ...Object.values(state.villagers)]) {
+      const t = tileOf(m);
+      if (t.tx < b.tx || t.tx >= b.tx + size || t.ty < b.ty || t.ty >= b.ty + size) continue;
+      const spot = this.freeTilesAround(state, t.tx, t.ty, 1, size + 2)[0];
+      if (!spot) continue;
+      m.x = spot.tx;
+      m.y = spot.ty;
+      m.path = [];
+      moved++;
+    }
+    return moved;
+  }
+
   private step(state: GameState, m: Mover, dist: number): void {
     let left = dist;
     while (left > 0 && m.path.length > 0) {
@@ -257,7 +279,10 @@ export class MovementSystem {
     }
   }
 
-  /** Soft collision: overlapping movers push each other apart (never into water/buildings). */
+  /**
+   * Soft collision between enemies only: allied units walk through each other in the
+   * village (no traffic jams); enemies push each other apart (never into water/buildings).
+   */
   private separate(state: GameState, movers: Mover[]): void {
     const minDist = GAME.pathfinding.separation;
     const cells = new Map<number, Mover[]>();
@@ -273,7 +298,7 @@ export class MovementSystem {
       for (let oy = -1; oy <= 1; oy++) {
         for (let ox = -1; ox <= 1; ox++) {
           for (const b of cells.get(tileKey(cx + ox, cy + oy)) ?? []) {
-            if (b.id <= a.id) continue;
+            if (b.id <= a.id || !enemies(state, a.ownerId, b.ownerId)) continue;
             let dx = b.x - a.x;
             let dy = b.y - a.y;
             let d = Math.hypot(dx, dy);
@@ -316,18 +341,27 @@ export class MovementSystem {
     const list = Object.values(state.buildings);
     const signature = `${list.length}:${list.length > 0 ? list[list.length - 1].id : ''}`;
     if (signature === this.blockedSignature) return;
+    const known = new Set(this.knownBuildings);
+    this.knownBuildings = list.map((b) => b.id);
     this.blockedSignature = signature;
     this.blocked.clear();
     for (const b of list) {
+      // Army camps are open ground: soldiers stand inside.
+      if (b.type === 'armyCamp') continue;
       const size = BUILDINGS[b.type].size;
       for (let y = b.ty; y < b.ty + size; y++) for (let x = b.tx; x < b.tx + size; x++) this.blocked.add(tileKey(x, y));
     }
+    for (const b of list) if (!known.has(b.id)) this.evictFrom(state, b);
   }
 }
 
 function touches(b: Building, size: number, tx: number, ty: number): boolean {
   const inside = tx >= b.tx && tx < b.tx + size && ty >= b.ty && ty < b.ty + size;
   return !inside && tx >= b.tx - 1 && tx <= b.tx + size && ty >= b.ty - 1 && ty <= b.ty + size;
+}
+
+function enemies(state: GameState, a: string, b: string): boolean {
+  return a !== b && !state.villages[a]?.allies.includes(b);
 }
 
 const hashId = (id: string): number => Number(id.split('-')[1]) || 0;

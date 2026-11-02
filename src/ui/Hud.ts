@@ -27,12 +27,12 @@ type SheetName = 'build' | 'army' | 'diplomacy';
  * Reads GameState; player actions go through `HudActions` (implemented by Game with the systems).
  */
 export class Hud {
-  private root: HTMLElement;
+  readonly root: HTMLElement;
   private values = new Map<string, HTMLElement>();
   private toastEl: HTMLElement;
   private toastTimer = 0;
   private sheets: Record<SheetName, Sheet>;
-  private selection: SelectionCard;
+  readonly selection: SelectionCard;
   private lastRefresh = 0;
 
   constructor(
@@ -117,6 +117,19 @@ export class Hud {
     this.root.classList.toggle('sheet-open', name !== null);
     document.body.classList.toggle('sheet-open', name !== null);
     if (name) this.selection.select(null);
+  }
+
+  /** Keyboard shortcut: opens the sheet, or closes it when it is already open. */
+  toggleSheet(name: SheetName): void {
+    const open = (Object.entries(this.sheets) as [SheetName, Sheet][]).find(([, sheet]) => sheet.isOpen)?.[0];
+    this.openSheet(open === name ? null : name);
+  }
+
+  /** Closes the open sheet. Returns false when none was open. */
+  closeSheet(): boolean {
+    if (!Object.values(this.sheets).some((sheet) => sheet.isOpen)) return false;
+    this.openSheet(null);
+    return true;
   }
 
   /** Called every frame; DOM updates are throttled. */

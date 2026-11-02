@@ -24,6 +24,14 @@ export function civilians(state: GameState, villageId: string): number {
   return Math.floor(state.villages[villageId].inhabitants);
 }
 
+/**
+ * Civilians the barracks can turn into warriors: the starting workers (`founders`)
+ * never can. Pure, also used by the AI and the Army panel.
+ */
+export function enlistableCount(state: GameState, villageId: string): number {
+  return Math.max(0, civilians(state, villageId) - state.villages[villageId].founders);
+}
+
 /** Total population = civilians + warriors. Must stay ≤ housing cap. */
 export function totalPopulation(state: GameState, villageId: string): number {
   return civilians(state, villageId) + warriors(state, villageId).length;
@@ -86,30 +94,17 @@ export function convertToWarrior(
     (b) => b.ownerId === villageId && b.buildProgress >= 1 && BUILDINGS[b.type].converts?.includes(type),
   );
   if (!barracks) return 'no-barracks';
-  if (civilians(state, villageId) < 1) return 'no-civilian';
+  if (enlistableCount(state, villageId) < 1) return 'no-civilian';
   const weapon = UNITS[type].weapon;
   if (village.weapons[weapon] < 1) return 'no-weapon';
 
   village.inhabitants -= 1;
   village.weapons[weapon] -= 1;
-  const slot = formationSlot(barracks, warriors(state, villageId).length);
-  addUnit(state, type, villageId, slot.x, slot.y);
+  // Steps out of the barracks; ArmySystem then walks it to its army camp.
+  const size = BUILDINGS[barracks.type].size;
+  addUnit(state, type, villageId, barracks.tx + Math.floor(size / 2), barracks.ty + size);
   bus?.emit('population:changed', { villageId });
   return 'ok';
-}
-
-const FORMATION_COLUMNS = 5;
-const FORMATION_SPACING = 0.9;
-
-/** Idle warriors line up in rows in front of the barracks (visible "army camp"). */
-export function formationSlot(barracks: Building, index: number): { x: number; y: number } {
-  const size = BUILDINGS[barracks.type].size;
-  const col = index % FORMATION_COLUMNS;
-  const row = Math.floor(index / FORMATION_COLUMNS);
-  return {
-    x: barracks.tx + size / 2 - 0.5 + (col - (FORMATION_COLUMNS - 1) / 2) * FORMATION_SPACING,
-    y: barracks.ty + size + 0.3 + row * FORMATION_SPACING,
-  };
 }
 
 /** Sends a warrior back to work. Its weapon is returned to stock. */
@@ -124,6 +119,18 @@ export function demobilize(state: GameState, unitId: string, bus?: EventBus): bo
   return true;
 }
 
+/**
+ * Inhabitants per second while housing is free: a base rate plus a bonus per
+ * completed house (families settle where there are homes), capped.
+ */
+export function growthRate(state: GameState, villageId: string): number {
+  const { baseGrowthPerSecond, growthPerHouse, maxGrowthPerSecond } = RESOURCES.population;
+  const houses = Object.values(state.buildings).filter(
+    (b) => b.ownerId === villageId && b.type === 'house' && b.buildProgress >= 1,
+  ).length;
+  return Math.min(maxGrowthPerSecond, baseGrowthPerSecond + growthPerHouse * houses);
+}
+
 /** Civilians grow over time while there is free housing. */
 export class PopulationSystem {
   constructor(private bus?: EventBus) {}
@@ -134,7 +141,7 @@ export class PopulationSystem {
       const room = housingCap(state, village.id) - warriors(state, village.id).length;
       const before = Math.floor(village.inhabitants);
       if (village.inhabitants < room) {
-        village.inhabitants = Math.min(room, village.inhabitants + RESOURCES.population.growthPerSecond * (dtMs / 1000));
+        village.inhabitants = Math.min(room, village.inhabitants + growthRate(state, village.id) * (dtMs / 1000));
       }
       if (Math.floor(village.inhabitants) !== before) this.bus?.emit('population:changed', { villageId: village.id });
     }

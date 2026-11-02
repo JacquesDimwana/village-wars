@@ -25,6 +25,7 @@ export const BUILDING_UI: Record<BuildingType, { icon: string; desc: string }> =
   armory: { icon: gi('armory'), desc: 'Forge épées et arcs.' },
   barracks: { icon: gi('barracks'), desc: 'Transforme habitant + arme en guerrier.' },
   tower: { icon: gi('tower'), desc: 'Tire sur les ennemis à portée.' },
+  armyCamp: { icon: gi('camp'), desc: 'Abrite tes soldats au repos.' },
 };
 
 export const WEAPON_UI: Record<WeaponType, { icon: string }> = {

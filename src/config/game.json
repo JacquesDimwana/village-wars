@@ -35,5 +35,12 @@
   "pathfinding": {
     "maxNodes": 4000,
     "separation": 0.55
+  },
+  "startingWorkers": 3,
+  "villagers": {
+    "maxVisible": 14
+  },
+  "army": {
+    "departIntervalMs": 350
   }
 }

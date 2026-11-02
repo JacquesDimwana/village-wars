@@ -3,7 +3,6 @@ import { addBuilding, createGameState } from '../src/core/GameState';
 import { PLAYER_ID } from '../src/core/constants';
 import { RESOURCES } from '../src/core/config';
 import { incomeRates, timeToAfford } from '../src/systems/EconomySystem';
-import { convertToWarrior, formationSlot } from '../src/systems/PopulationSystem';
 import { WorldGen } from '../src/world/WorldGen';
 
 const setup = () => {
@@ -40,20 +39,5 @@ describe('incomeRates', () => {
     const ironPerSecond = 1000 / RESOURCES.smelter.intervalMs;
     expect(rates.iron).toBeCloseTo(ironPerSecond);
     expect(rates.ore).toBeCloseTo(-ironPerSecond * RESOURCES.smelter.orePerIron);
-  });
-});
-
-describe('Army formation', () => {
-  it('warriors line up on distinct spots in front of the barracks', () => {
-    const { state, player } = setup();
-    const barracks = addBuilding(state, 'barracks', PLAYER_ID, 10, 10, true);
-    player.inhabitants = 8;
-    player.weapons = { sword: 4, bow: 4 };
-    for (let i = 0; i < 4; i++) convertToWarrior(state, PLAYER_ID, 'knight');
-    for (let i = 0; i < 4; i++) convertToWarrior(state, PLAYER_ID, 'archer');
-    const spots = new Set(Object.values(state.units).map((u) => `${u.x.toFixed(2)},${u.y.toFixed(2)}`));
-    expect(spots.size).toBe(8);
-    for (const u of Object.values(state.units)) expect(u.y).toBeGreaterThan(barracks.ty);
-    expect(formationSlot(barracks, 5).y).toBeGreaterThan(formationSlot(barracks, 0).y);
   });
 });

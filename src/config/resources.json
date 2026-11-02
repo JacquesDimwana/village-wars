@@ -9,7 +9,9 @@
     "intervalMs": 5000
   },
   "population": {
-    "growthPerSecond": 0.1
+    "baseGrowthPerSecond": 0.05,
+    "growthPerHouse": 0.022,
+    "maxGrowthPerSecond": 0.2
   },
   "weapons": {
     "sword": {

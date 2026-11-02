@@ -34,7 +34,7 @@
     "speed": 1.8,
     "vision": 3,
     "carryCapacity": 10,
-    "gatherPerSecond": 1.0,
+    "gatherPerSecond": 0.5,
     "workMs": 3000,
     "searchRadius": 10,
     "wanderRadius": 5,

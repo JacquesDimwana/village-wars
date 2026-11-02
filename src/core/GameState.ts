@@ -41,7 +41,20 @@ export function addBuilding(
 
 export function addUnit(state: GameState, type: UnitType, ownerId: string, x: number, y: number): Unit {
   const def = UNITS[type];
-  const u: Unit = { id: nextId(state, 'u'), type, ownerId, x, y, path: [], hp: def.hp, maxHp: def.hp };
+  const u: Unit = {
+    id: nextId(state, 'u'),
+    type,
+    ownerId,
+    x,
+    y,
+    path: [],
+    hp: def.hp,
+    maxHp: def.hp,
+    campId: null,
+    onMission: false,
+    departMs: 0,
+    missionTarget: null,
+  };
   state.units[u.id] = u;
   return u;
 }
@@ -74,6 +87,7 @@ export function createGameState(world: WorldGen): GameState {
       production: emptyResources(),
       smelterTimerMs: 0,
       inhabitants: GAME.startingInhabitants,
+      founders: Math.min(GAME.startingWorkers, GAME.startingInhabitants),
       weapons: { ...GAME.startingWeapons },
       forgeQueue: [],
       alive: true,

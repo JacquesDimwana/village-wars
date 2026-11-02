@@ -13,7 +13,8 @@ export type BuildingType =
   | 'smelter'
   | 'barracks'
   | 'armory'
-  | 'tower';
+  | 'tower'
+  | 'armyCamp';
 
 export type UnitType = 'knight' | 'archer';
 export type WeaponType = 'sword' | 'bow';
@@ -54,6 +55,14 @@ export interface Unit extends Mover {
   type: UnitType;
   hp: number;
   maxHp: number;
+  /** Army camp this soldier rests in (null = waits in front of the barracks). */
+  campId: string | null;
+  /** Sent out by the player / AI: walks freely and is always drawn. False = resting at camp. */
+  onMission: boolean;
+  /** Delay before leaving the camp (soldiers exit one by one, in a column), ms. */
+  departMs: number;
+  /** Mission destination, applied when departMs reaches 0. */
+  missionTarget: TilePos | null;
 }
 
 /**
@@ -76,6 +85,10 @@ export interface Villager extends Mover {
   timerMs: number;
   /** Resource carried (shown above the head). Only `harvest` loads are credited. */
   carrying: { type: ResourceType; amount: number } | null;
+  /** False for the starting workers: they can never be turned into warriors. */
+  enlistable: boolean;
+  /** Works "inside" its building: counted, simulated cheaply, not drawn (crowd cap). */
+  inside: boolean;
 }
 
 export interface Village {
@@ -90,6 +103,8 @@ export interface Village {
   smelterTimerMs: number;
   /** Civilians (fractional while growing). Only floor(inhabitants) are counted as workers. */
   inhabitants: number;
+  /** Starting workers still alive (part of inhabitants, never enlistable). */
+  founders: number;
   /** Forged weapons in stock, consumed when converting an inhabitant into a warrior. */
   weapons: Record<WeaponType, number>;
   /** Armory queue, front item progresses first. */

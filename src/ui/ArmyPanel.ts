@@ -2,7 +2,7 @@ import { BUILDINGS, UNITS, WEAPONS } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import type { GameState, UnitType, WeaponType } from '../core/types';
 import { canAfford } from '../systems/EconomySystem';
-import { assignWorkers, civilians, staffing, warriors } from '../systems/PopulationSystem';
+import { assignWorkers, enlistableCount, staffing, warriors } from '../systems/PopulationSystem';
 import { UNIT_UI, WEAPON_UI, costHtml, gi } from './icons';
 import { Sheet, setHtml, setText } from './Sheet';
 
@@ -83,14 +83,15 @@ export class ArmyPanel extends Sheet {
       .join('');
     setHtml(this.body.querySelector('[data-k="queue"]'), queue || '<small>File de forge vide</small>');
 
-    setText(this.body.querySelector('[data-k="barracks-status"]'), hasBarracks ? `· ${civilians(state, PLAYER_ID)} habitants dispo` : '· construis une caserne');
+    const enlistable = enlistableCount(state, PLAYER_ID);
+    setText(this.body.querySelector('[data-k="barracks-status"]'), hasBarracks ? `· ${enlistable} habitants dispo` : '· construis une caserne');
     const army = warriors(state, PLAYER_ID);
     for (const u of UNIT_TYPES) {
       const row = this.body.querySelector(`[data-unit="${u}"]`)!;
       const count = army.filter((w) => w.type === u).length;
       setText(row.querySelector('[data-k="count"]'), String(count));
       const [train, demob] = row.querySelectorAll<HTMLButtonElement>('button');
-      train.disabled = !hasBarracks || civilians(state, PLAYER_ID) < 1 || v.weapons[UNITS[u].weapon] < 1;
+      train.disabled = !hasBarracks || enlistable < 1 || v.weapons[UNITS[u].weapon] < 1;
       demob.disabled = count === 0;
     }
   }

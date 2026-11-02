@@ -45,14 +45,42 @@ hôtels de ville ennemis avant que le sien tombe.
 
 Ressources de départ : `game.json` → `startingResources`.
 
+**Rythme visé (partie de 15 à 25 min)**, vérifié par une simulation dans
+`tests/pacing.test.ts` (joueur raisonnable, un chantier à la fois) :
+
+| Jalon | Visé | Simulé |
+|---|---|---|
+| 1re maison | ≈ 1 min | 0,8 min |
+| Camp de bûcherons et carrière | avant 3 min | 0,2 et 0,4 min |
+| Armurerie (50 fer) | 6 à 9 min | 8,4 min |
+| ≈ 8 guerriers | 10 à 13 min | 12,4 min |
+| 40 habitants | ≈ 8 min | 6,8 min |
+| 100 habitants | 14 à 16 min | 12,2 min |
+
+Récolte manuelle (`units.json` → `villager`) : charge **10**, **0,5 unité/s** sur la
+tuile, vitesse 1,8 tuile/s. Un villageois rapporte ainsi **0,45/s à 2 tuiles du dépôt et
+0,37/s à 6 tuiles** (0,4/s par poste au camp de bûcherons) : la récolte à la main ne bat
+pas un bâtiment. Une tuile de forêt (150 bois) se vide en **≈ 6 min** pour un villageois :
+les forêts proches s'épuisent en milieu de partie, ce qui pousse à s'étendre.
+
 ## 4. Habitants, emploi et guerriers (cœur du jeu)
 
 C'est le dilemme central : **chaque habitant est soit un travailleur, soit un guerrier.**
 
 - **Habitation** : chaque bâtiment avec `population` (maisons +10, hôtel de ville +5 par
   niveau) offre des places. Plus le village est grand, plus il peut loger d'habitants.
-- **Croissance** : tant qu'il reste des places libres, les habitants arrivent tout seuls
-  (`resources.json` → `population.growthPerSecond`). Les guerriers occupent aussi une place.
+- **Croissance** : tant qu'il reste des places libres, les habitants arrivent tout seuls,
+  d'autant plus vite que le village a de maisons : `baseGrowthPerSecond` (0,05/s) +
+  `growthPerHouse` (0,022/s) par maison terminée, plafonné à `maxGrowthPerSecond`
+  (0,2/s) (`resources.json` → `population`). Les guerriers occupent aussi une place.
+- **Ouvriers de départ** : chaque village démarre à l'hôtel de ville avec
+  `game.json` → `startingWorkers` ouvriers (3, inclus dans `startingInhabitants`). Ils
+  **ne peuvent jamais devenir guerriers** : ils travaillent, récoltent à la main et
+  explorent (envoyés loin, ils découvrent la carte autour d'eux). Ils comptent dans la
+  population et l'habitation. Morts, ils ne sont pas remplacés ; les habitants nés de la
+  croissance sont tous mobilisables. Ils se distinguent visuellement (tenue claire, outil)
+  et leur fiche indique « Ouvrier — ne peut pas être enrôlé ». La caserne ne compte comme
+  « habitants dispo » que les habitants mobilisables (`enlistableCount`).
 - **Emploi** : tous les habitants civils travaillent automatiquement. Les bâtiments de
   production ont des postes (`workerSlots`). Ils sont remplis dans l'ordre de
   construction, l'hôtel de ville (production faible de secours) en dernier.
@@ -64,7 +92,11 @@ C'est le dilemme central : **chaque habitant est soit un travailleur, soit un gu
   que la *montrer* par des allers-retours visibles entre leur bâtiment et la ressource
   proche (forêt, roche, filon), avec la ressource portée au-dessus de la tête. Les
   travailleurs de la fonderie et de l'armurerie restent devant leur bâtiment. Les
-  habitants sans poste se promènent dans le village.
+  habitants sans poste se promènent dans le village. Pour ne pas encombrer l'écran,
+  seuls `game.json` → `villagers.maxVisible` (14) villageois par village sont dessinés et
+  se déplacent ; les autres travaillent « à l'intérieur » de leur bâtiment (comptés, pas
+  dessinés). Les villageois qui ont reçu un ordre manuel sont toujours visibles. La
+  production reste celle des postes, indépendante de l'affichage.
 - **Ordres manuels (facultatifs)** : le joueur peut sélectionner un villageois et
   - toucher une forêt / un rocher / un filon : il quitte son poste et **récolte cette
     tuile lui-même** (`units.json` → `villager` : vitesse, charge, vitesse de récolte).
@@ -81,8 +113,9 @@ C'est le dilemme central : **chaque habitant est soit un travailleur, soit un gu
   - toucher le sol : il y va, puis reprend son poste automatique.
 - **Armurerie** : forge les armes à partir des ressources — **épée** (bois + fer) et
   **arc** (bois). File d'attente, vitesse proportionnelle au nombre de forgerons.
-- **Conversion** : à la caserne, **1 habitant + 1 arme → 1 guerrier** (épée → chevalier,
-  arc → archer). Le guerrier quitte son poste : **la production du village baisse**.
+- **Conversion** : à la caserne, **1 habitant mobilisable + 1 arme → 1 guerrier** (épée →
+  chevalier, arc → archer). Le guerrier quitte son poste : **la production du village
+  baisse**. Il sort de la caserne et rejoint un camp d'armée (§6).
 - **Démobilisation** : un guerrier peut redevenir habitant (il rend son arme au stock et
   reprend un poste).
 
@@ -105,6 +138,7 @@ Valeurs (coût, PV, taille, postes, production, temps de construction) dans
 | Armurerie | Forge épées et arcs | 2 |
 | Caserne | Convertit habitant + arme en chevalier ou archer | — |
 | Tour de défense | Tire automatiquement sur les ennemis à portée | — |
+| Camp d'armée | Abrite les soldats au repos (4×4, terrain ouvert traversable) | — |
 
 Construction : sur grille, tuiles libres et constructibles (`grass`/`sand`), à ≤
 `buildRadius` tuiles d'un bâtiment existant du joueur. On ne peut pas construire sur les
@@ -112,7 +146,9 @@ arbres (`forest`), la roche (`rock`), le minerai (`ore`) ni l'eau. Une tuile de 
 de roche ou de minerai dont la ressource est épuisée (`depletion` à 0) est dégagée :
 elle devient de l'herbe constructible et son décor (arbre, rocher) disparaît. L'eau
 reste toujours infranchissable et inconstructible. Un bâtiment en construction a
-une barre de progression et ne produit rien.
+une barre de progression et ne produit rien. Les unités ne gênent jamais la construction :
+un villageois ou un soldat qui se trouve sous un bâtiment posé se décale vers la tuile libre
+la plus proche.
 
 ## 6. Unités
 
@@ -129,9 +165,22 @@ Combat : automatique. Un guerrier attaque l'ennemi le plus proche dans son `aggr
 Les guerriers au repos dans un village attaqué défendent automatiquement.
 Déplacement (guerriers et villageois) : A* 8 directions sur la grille, sans couper les
 coins, recherche bornée ; l'eau et les bâtiments bloquent (forêts, roches et filons se
-traversent). Les unités ne s'empilent pas : un groupe envoyé sur une tuile se répartit
-sur les tuiles libres autour, et les unités trop proches s'écartent doucement.
-Un guerrier déplacé reste à sa destination et découvre la carte autour de lui.
+traversent, le camp d'armée aussi). Un groupe envoyé sur une tuile se répartit sur les
+tuiles libres autour. **Pas de bouchon dans le village** : les unités alliées se
+traversent ; seules les unités ennemies se repoussent (combat).
+
+**Camps d'armée (au repos).** Chaque soldat au repos appartient au camp d'armée terminé le
+moins rempli de son village ; sans camp, il attend devant la caserne en bloc compact
+(≈ √n colonnes). Un camp n'a pas de limite de capacité, mais n'affiche au plus que
+`armyCamp.visibleSoldiers` (8) figurines, réparties entre chevaliers et archers au
+prorata, avec un badge « ⚔️ 24 » qui donne le total. Toucher le camp ouvre sa fiche
+(chevaliers ×N, archers ×N, total) avec « Former des troupes » et « Partir en guerre ».
+
+**Partir en guerre.** « Partir en guerre » sélectionne toute l'armée du camp ; le
+joueur touche une destination. Les soldats sortent du camp un par un
+(`game.json` → `army.departIntervalMs`), en colonne, deviennent visibles et avancent. Ils
+restent à destination (et découvrent la carte) jusqu'au bouton « Rentrer », qui les
+ramène au camp où ils redeviennent comptés sans être dessinés.
 
 ## 7. Contrôles (tactile)
 
@@ -143,8 +192,28 @@ Un guerrier déplacé reste à sa destination et découvre la carte autour de lu
 - Avec une sélection : tap sur le sol = déplacer (marqueur de destination) ; tap sur
   forêt / roche / filon = les villageois sélectionnés y récoltent, les guerriers s'en
   approchent ; tap sur un bâtiment de production = les villageois y sont affectés
-  (attaquer selon la cible : voir combat).
+  (attaquer selon la cible : voir combat). Avec des soldats sélectionnés, la barre
+  propose « Rentrer » (retour au camp).
+- Tap sur un camp d'armée : fiche du camp (« Former des troupes », « Partir en guerre »).
 - Bouton « Construire » : menu bâtiments → fantôme vert/rouge → tap pour poser
+
+**Sur ordinateur (souris + clavier)**, mêmes règles, gestes de RTS classiques :
+
+- Clic gauche : sélectionner (unité, villageois, bâtiment) ; clic gauche + glisser sur le
+  sol : rectangle de sélection (pas besoin d'appui long) ; Maj + clic / Maj + rectangle :
+  ajouter à la sélection.
+- Clic droit : donner l'ordre à la sélection (déplacer, récolter, affecter, partir en
+  guerre) ; sans sélection, il ne fait rien.
+- Déplacer la caméra : glisser avec le clic du milieu (ou clic droit maintenu), flèches /
+  ZQSD / WASD, ou souris au bord de l'écran (plein écran seulement). Molette : zoom
+  centré sur le curseur.
+- Raccourcis : Échap = désélectionner / fermer le panneau ; B = Construire ; A = Armée ;
+  Espace = revenir au village ; Ctrl + A = sélectionner tous les soldats visibles.
+- Curseur : main sur ce qui se sélectionne, curseur d'ordre (récolter / déplacer) au survol
+  quand une sélection est active.
+- Interface : sur grand écran (≥ 1280 px), le HUD garde des tailles fixes lisibles (pas
+  d'éléments géants), panneaux limités en largeur et centrés ; tout reste utilisable de
+  1280×720 à 2560×1440 et en fenêtre redimensionnée.
 - Bouton « Armée » : forger des armes (armurerie), convertir / démobiliser (caserne)
 - Bouton « Diplomatie » : liste des 5 villages IA
 
