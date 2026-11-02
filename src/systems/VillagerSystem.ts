@@ -43,6 +43,7 @@ export function spawnVillager(state: GameState, ownerId: string, x: number, y: n
     carrying: null,
     enlistable,
     inside: false,
+    hp: VILLAGER.hp,
   };
   state.villagers[v.id] = v;
   return v;

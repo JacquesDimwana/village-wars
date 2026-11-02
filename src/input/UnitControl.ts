@@ -4,6 +4,7 @@ import { PLAYER_ID } from '../core/constants';
 import type { EventBus } from '../core/EventBus';
 import type { Building, GameState, TilePos, Unit, Villager } from '../core/types';
 import { campDisplay, drawnUnitIds, isArmyCamp, recallArmy, sendArmy, soldiersInCamp } from '../systems/ArmySystem';
+import { isEnemy, orderAttack } from '../systems/CombatSystem';
 import { TILE_RESOURCE, isResourceTile, orderHarvest } from '../systems/GatherSystem';
 import type { MovementSystem } from '../systems/MovementSystem';
 import { orderAssign, orderGoto } from '../systems/VillagerSystem';
@@ -13,7 +14,7 @@ import type { SelectionCard } from '../ui/SelectionCard';
 import { UnitBar } from '../ui/UnitBar';
 import type { RtsCamera } from './RtsCamera';
 
-export type MarkerKind = 'move' | 'harvest' | 'assign';
+export type MarkerKind = 'move' | 'harvest' | 'assign' | 'attack';
 
 export interface UnitControlDeps {
   parent: HTMLElement;
@@ -38,6 +39,10 @@ const PICK_RADIUS_PX = 28;
 const MIN_BOX_PX = 4;
 const BAR_REFRESH_MS = 200;
 const BADGE_REFRESH_MS = 250;
+/** Crossed swords over an enemy when soldiers are selected (desktop). */
+const ATTACK_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><g stroke="#fff" stroke-width="4" stroke-linecap="round"><path d="M4 4l16 16M20 4L4 20"/></g><g stroke="#d63a2a" stroke-width="2" stroke-linecap="round"><path d="M4 4l16 16M20 4L4 20"/></g></svg>',
+)}") 12 12, crosshair`;
 
 interface Badge {
   el: HTMLElement;
@@ -143,6 +148,14 @@ export class UnitControl {
     }
     const unitIds = units.map((u) => u.id);
 
+    // Soldiers + enemy warrior / villager / building under the finger = attack it.
+    if (unitIds.length > 0) {
+      const [cx, cy] = this.toClient(ndc);
+      const enemy = this.pickEnemy(state, cx, cy);
+      if (enemy) return this.attack(state, unitIds, enemy);
+      if (building && isEnemy(state, PLAYER_ID, building.ownerId)) return this.attack(state, unitIds, building.id);
+    }
+
     if (building) {
       const def = BUILDINGS[building.type];
       if (building.ownerId !== PLAYER_ID || !def.workerSlots || building.buildProgress < 1) {
@@ -165,6 +178,18 @@ export class UnitControl {
     }
 
     return this.orderGround(ndc, state, units, villagers);
+  }
+
+  private attack(state: GameState, unitIds: string[], targetId: string): boolean {
+    if (orderAttack(state, unitIds, targetId) === 0) return true;
+    const u = state.units[targetId];
+    const v = state.villagers[targetId];
+    const b = state.buildings[targetId];
+    const size = b ? BUILDINGS[b.type].size : 1;
+    const at = u ?? v ?? (b ? { x: b.tx + Math.floor(size / 2), y: b.ty + Math.floor(size / 2) } : null);
+    if (at) this.mark([{ tx: Math.round(at.x), ty: Math.round(at.y) }], 'attack');
+    this.notify(b ? `À l’attaque : ${BUILDINGS[b.type].name} !` : 'À l’attaque !');
+    return true;
   }
 
   private orderGround(ndc: THREE.Vector2, state: GameState, units: Unit[], villagers: Villager[]): boolean {
@@ -253,6 +278,26 @@ export class UnitControl {
     return out;
   }
 
+  /** Nearest drawn enemy (non-allied) warrior or visible villager under a screen point. */
+  private pickEnemy(state: GameState, cx: number, cy: number): string | null {
+    let best: string | null = null;
+    let bestD = PICK_RADIUS_PX;
+    const consider = (id: string, ownerId: string, x: number, y: number): void => {
+      if (!isEnemy(state, PLAYER_ID, ownerId)) return;
+      const s = this.project(x + 0.5, 0.5, y + 0.5);
+      if (!s) return;
+      const dist = Math.hypot(s[0] - cx, s[1] - cy);
+      if (dist < bestD) (bestD = dist, (best = id));
+    };
+    for (const id of drawnUnitIds(state)) {
+      const u = state.units[id];
+      if (u) consider(id, u.ownerId, u.x, u.y);
+    }
+    if (best) return best; // warriors win over villagers standing next to them
+    for (const v of Object.values(state.villagers)) if (!v.inside) consider(v.id, v.ownerId, v.x, v.y);
+    return best;
+  }
+
   private pick(state: GameState, cx: number, cy: number): string | null {
     let best: string | null = null;
     let bestD = PICK_RADIUS_PX;
@@ -320,7 +365,11 @@ export class UnitControl {
     const r = this.d.canvas.getBoundingClientRect();
     if (h.x >= r.left && h.x <= r.right && h.y >= r.top && h.y <= r.bottom) {
       const ndc = new THREE.Vector2(((h.x - r.left) / r.width) * 2 - 1, -((h.y - r.top) / r.height) * 2 + 1);
-      if (this.pick(state, h.x, h.y) || this.d.buildingAt(ndc)) next = 'pointer';
+      const hovered = this.d.buildingAt(ndc);
+      const enemyHovered =
+        this.selectedIds.size > 0 && (!!this.pickEnemy(state, h.x, h.y) || (!!hovered && isEnemy(state, PLAYER_ID, hovered.ownerId)));
+      if (enemyHovered) next = ATTACK_CURSOR;
+      else if (this.pick(state, h.x, h.y) || hovered) next = 'pointer';
       else if (this.selectedIds.size > 0) {
         const p = this.d.cam.groundPoint(ndc);
         next = p && isResourceTile(this.d.movement.tile(Math.floor(p.x), Math.floor(p.z))) ? 'cell' : 'crosshair';

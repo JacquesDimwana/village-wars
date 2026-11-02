@@ -14,6 +14,7 @@ import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
 import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
 import { ArmySystem } from './systems/ArmySystem';
+import { CombatSystem } from './systems/CombatSystem';
 import { GatherSystem } from './systems/GatherSystem';
 import { MovementSystem } from './systems/MovementSystem';
 import { PopulationSystem, convertToWarrior, demobilize } from './systems/PopulationSystem';
@@ -59,6 +60,7 @@ export class Game {
   private villagers = new VillagerSystem(this.movement);
   private gather = new GatherSystem(this.movement, bus);
   private army = new ArmySystem(this.movement);
+  private combat = new CombatSystem(this.movement, bus);
 
   constructor(
     container: HTMLElement,
@@ -168,10 +170,10 @@ export class Game {
     this.villagers.update(this.state, dt);
     this.gather.update(this.state, dt);
     this.army.update(this.state, dt);
+    this.combat.update(this.state, dt);
     this.movement.update(this.state, dt);
     this.fog.update(this.state, dt);
     // TODO(agent A) construction.update(this.state, dt)
-    // TODO(agent C) combat
     // TODO(agent D) ai
     // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
   }

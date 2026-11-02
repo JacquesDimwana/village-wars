@@ -46,5 +46,11 @@
   "map": {
     "halfSize": 120,
     "borderWidth": 10
+  },
+  "combat": {
+    "reach": 0.5,
+    "defendRadius": 14,
+    "alarmMs": 6000,
+    "repathMs": 600
   }
 }

@@ -54,6 +54,11 @@ export function addUnit(state: GameState, type: UnitType, ownerId: string, x: nu
     onMission: false,
     departMs: 0,
     missionTarget: null,
+    targetId: null,
+    ordered: false,
+    nextAttackMs: 0,
+    lastAttackMs: -1,
+    repathAtMs: 0,
   };
   state.units[u.id] = u;
   return u;

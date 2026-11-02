@@ -62,7 +62,7 @@ export function drawnUnitIds(state: GameState): Set<string> {
   const ids = new Set<string>();
   const camps = new Map<string, CampDisplay>();
   for (const u of Object.values(state.units)) {
-    if (u.onMission || !u.campId || u.path.length > 0) {
+    if (u.onMission || !u.campId || u.path.length > 0 || u.targetId) {
       ids.add(u.id);
       continue;
     }
@@ -87,6 +87,9 @@ export function sendArmy(state: GameState, movement: MovementSystem, unitIds: st
     const leavingCamp = !u.onMission;
     u.onMission = true;
     u.missionTarget = spot;
+    // A move order wins over fighting (lets the player retreat).
+    u.targetId = null;
+    u.ordered = false;
     u.departMs = leavingCamp ? queued++ * GAME.army.departIntervalMs : 0;
     if (u.departMs === 0) launch(state, movement, u);
   });
@@ -102,6 +105,8 @@ export function recallArmy(state: GameState, unitIds: string[]): void {
     u.missionTarget = null;
     u.departMs = 0;
     u.path = [];
+    u.targetId = null;
+    u.ordered = false;
   }
 }
 
@@ -171,7 +176,8 @@ export class ArmySystem {
         }
         continue;
       }
-      if (u.path.length > 0) continue;
+      // Walking, or fighting (CombatSystem drives defenders until the threat is gone).
+      if (u.path.length > 0 || u.targetId) continue;
       const slot = restSlot(state, u);
       if (!slot) continue;
       const t = tileOf(slot);

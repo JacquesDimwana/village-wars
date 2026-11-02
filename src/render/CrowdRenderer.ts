@@ -17,10 +17,16 @@
  *   top-left) of everything drawn at the last sync, for tap / box picking:
  *   `{ id, kind: 'unit' | 'villager', x, y }[]`, where (x, y) is the character's chest.
  *   Entities behind the camera are left out.
+ *
+ * Combat (read from GameState): a soldier with a target and no path faces it and plays
+ * one attack swing each time `lastAttackMs` changes; wounded characters get a health bar.
  */
 import * as THREE from 'three';
+import { VILLAGER } from '../core/config';
+import { PLAYER_ID } from '../core/constants';
 import type { GameState, ResourceType, TileType } from '../core/types';
 import { drawnUnitIds } from '../systems/ArmySystem';
+import { buildingCenter, resolveTarget } from '../systems/CombatSystem';
 import type { Assets, CrowdModelKind } from './Assets';
 import { TILE_HEIGHT } from './Terrain';
 import { teamStyle } from './teams';
@@ -50,6 +56,14 @@ const LOAD_Y = 0.93;
 const VILLAGER_TINT = new THREE.Color(0xffffff);
 const FOUNDER_TINT = new THREE.Color(1.0, 0.84, 0.62);
 const TEAM_TINT = 0.22;
+const BAR_Y = 1.25;
+const BAR_WIDTH = 0.6;
+const BAR_HEIGHT = 0.07;
+/** Bars face the fixed camera yaw (same as building bars). */
+const BAR_YAW = Math.PI / 4;
+const BAR_OWN = new THREE.Color(0x2ecc71);
+const BAR_ENEMY = new THREE.Color(0xe74c3c);
+const BAR_BACK = new THREE.Color(0x111111);
 const MARKER_COLORS: Record<MarkerKind, THREE.Color> = {
   move: new THREE.Color(0xb8ff9a),
   harvest: new THREE.Color(0xffc93c),
@@ -164,6 +178,9 @@ interface Track {
   yaw: number;
   phase: number;
   seen: number;
+  /** Last `unit.lastAttackMs` seen and the render time its swing started. */
+  attackMs: number;
+  attackSec: number;
 }
 
 interface Marker {
@@ -180,6 +197,8 @@ export class CrowdRenderer {
   private selectRings: Pool;
   private markerRings: Pool;
   private loads: Pool;
+  private barBacks: Pool;
+  private barFills: Pool;
   private tracks = new Map<string, Track>();
   private markers: Marker[] = [];
   private drawn: { id: string; kind: CrowdKind; x: number; z: number }[] = [];
@@ -218,6 +237,10 @@ export class CrowdRenderer {
     this.selectRings = new Pool(this.root, ...ring(0.3, 0.42, 0.95), (m) => flat(m, 2));
     this.markerRings = new Pool(this.root, ...ring(0.32, 0.46, 1, true), (m) => flat(m, 3));
     this.loads = new Pool(this.root, new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.9 }), () => {});
+    const barMat = (): THREE.Material => new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false, transparent: true });
+    this.barBacks = new Pool(this.root, new THREE.PlaneGeometry(1, BAR_HEIGHT), barMat(), (m) => flat(m, 10));
+    // Origin on the left edge, so scaling x shrinks the fill from the right.
+    this.barFills = new Pool(this.root, new THREE.PlaneGeometry(1, BAR_HEIGHT).translate(0.5, 0, 0), barMat(), (m) => flat(m, 11));
   }
 
   sync(state: GameState, dtSec: number, selected: ReadonlySet<string>, zoomDistance = 0): void {
@@ -228,14 +251,27 @@ export class CrowdRenderer {
     this.teamRings.begin();
     this.selectRings.begin();
     this.loads.begin();
+    this.barBacks.begin();
+    this.barFills.begin();
 
     for (const id of drawnUnitIds(state)) {
       const u = state.units[id];
       if (!u) continue;
       const tint = this.c.setRGB(1, 1, 1).lerp(teamStyle(u.ownerId).marker, TEAM_TINT);
-      const yaw = this.track(id, u.x, u.y, dtSec);
-      this.addCharacter(this.batches[u.type], id, u.x, u.y, yaw, u.path.length > 0 ? 'walk' : 'idle', tint, false);
+      const target = u.targetId && u.path.length === 0 ? resolveTarget(state, u.targetId) : null;
+      const face = target ? (target.kind === 'building' ? buildingCenter(target.e) : target.e) : undefined;
+      const yaw = this.track(id, u.x, u.y, dtSec, face);
+      const t = this.tracks.get(id)!;
+      if (u.lastAttackMs !== t.attackMs) {
+        t.attackMs = u.lastAttackMs;
+        t.attackSec = this.timeSec;
+      }
+      const swing = this.batches[u.type].model.clips.attack;
+      const swinging = !!target && !!swing && this.timeSec - t.attackSec < swing.duration;
+      const clip: CrowdClip = swinging ? 'attack' : u.path.length > 0 ? 'walk' : 'idle';
+      this.addCharacter(this.batches[u.type], id, u.x, u.y, yaw, clip, tint, false, swinging ? t.attackSec : undefined);
       this.addRings(id, u.ownerId, u.x, u.y, selected);
+      if (u.hp < u.maxHp) this.addBar(u.ownerId, u.x, u.y, u.hp / u.maxHp);
       this.drawn.push({ id, kind: 'unit', x: u.x + 0.5, z: u.y + 0.5 });
     }
     for (const v of Object.values(state.villagers)) {
@@ -246,6 +282,7 @@ export class CrowdRenderer {
       this.addCharacter(this.batches.villager, v.id, v.x, v.y, yaw, clip, founder ? FOUNDER_TINT : VILLAGER_TINT, founder);
       this.addRings(v.id, v.ownerId, v.x, v.y, selected);
       if (v.carrying) this.addLoad(v.carrying.type, v.x, v.y, yaw);
+      if (v.hp < VILLAGER.hp) this.addBar(v.ownerId, v.x, v.y, v.hp / VILLAGER.hp);
       this.drawn.push({ id: v.id, kind: 'villager', x: v.x + 0.5, z: v.y + 0.5 });
     }
 
@@ -262,6 +299,8 @@ export class CrowdRenderer {
     this.teamRings.end();
     this.selectRings.end();
     this.loads.end();
+    this.barBacks.end();
+    this.barFills.end();
     this.syncMarkers();
     for (const [id, t] of this.tracks) if (t.seen !== this.frameNo) this.tracks.delete(id);
   }
@@ -287,15 +326,15 @@ export class CrowdRenderer {
     return Math.max(0, TILE_HEIGHT[this.tileAt(Math.floor(x + 0.5), Math.floor(y + 0.5))]);
   }
 
-  /** Remembers the last position to face the walking direction (display state only). */
-  private track(id: string, x: number, y: number, dtSec: number): number {
+  /** Remembers the last position to face the walking direction, or `face` when fighting (display state only). */
+  private track(id: string, x: number, y: number, dtSec: number, face?: { x: number; y: number }): number {
     let t = this.tracks.get(id);
     if (!t) {
-      t = { x, y, yaw: hash(id) * Math.PI * 2, phase: hash(id), seen: 0 };
+      t = { x, y, yaw: hash(id) * Math.PI * 2, phase: hash(id), seen: 0, attackMs: -1, attackSec: -Infinity };
       this.tracks.set(id, t);
     }
-    const dx = x - t.x;
-    const dy = y - t.y;
+    const dx = face ? face.x - x : x - t.x;
+    const dy = face ? face.y - y : y - t.y;
     if (dx * dx + dy * dy > 1e-7) {
       const target = Math.atan2(dx, dy);
       let diff = target - t.yaw;
@@ -317,6 +356,8 @@ export class CrowdRenderer {
     clipName: CrowdClip,
     tint: THREE.Color,
     showProp: boolean,
+    /** One-shot clip started at this render time (attack swing) instead of looping. */
+    startSec?: number,
   ): void {
     const clip = batch.model.clips[clipName] ?? batch.model.clips.idle;
     if (!clip) return;
@@ -326,7 +367,10 @@ export class CrowdRenderer {
     batch.pool.mesh.setMatrixAt(i, this.m);
     batch.pool.mesh.setColorAt(i, tint);
     const phase = this.tracks.get(id)?.phase ?? 0;
-    const pos = (((this.timeSec / clip.duration + phase) % 1) * clip.frames) % clip.frames;
+    const pos =
+      startSec !== undefined
+        ? Math.min(clip.frames - 1, ((this.timeSec - startSec) / clip.duration) * clip.frames)
+        : (((this.timeSec / clip.duration + phase) % 1) * clip.frames) % clip.frames;
     batch.anim.setXYZW(i, clip.start, clip.frames, pos, showProp ? 1 : 0);
   }
 
@@ -342,6 +386,24 @@ export class CrowdRenderer {
     const j = this.selectRings.next();
     this.selectRings.mesh.setMatrixAt(j, this.m);
     this.selectRings.mesh.setColorAt(j, this.c.setHex(0xffe14a));
+  }
+
+  /** Health bar above a wounded character: green for the player, red for the others. */
+  private addBar(ownerId: string, x: number, y: number, ratio: number): void {
+    const h = this.ground(x, y) + BAR_Y;
+    this.q.setFromAxisAngle(this.up, BAR_YAW);
+    this.m.compose(this.p.set(x + 0.5, h, y + 0.5), this.q, this.s.set(BAR_WIDTH, 1, 1));
+    const i = this.barBacks.next();
+    this.barBacks.mesh.setMatrixAt(i, this.m);
+    this.barBacks.mesh.setColorAt(i, BAR_BACK);
+    // Left edge of the bar along its local x axis (rotated by BAR_YAW around y).
+    const half = BAR_WIDTH / 2;
+    const lx = x + 0.5 - Math.cos(BAR_YAW) * half;
+    const lz = y + 0.5 + Math.sin(BAR_YAW) * half;
+    this.m.compose(this.p.set(lx, h, lz), this.q, this.s.set(BAR_WIDTH * Math.max(0.001, ratio), 1, 1));
+    const j = this.barFills.next();
+    this.barFills.mesh.setMatrixAt(j, this.m);
+    this.barFills.mesh.setColorAt(j, ownerId === PLAYER_ID ? BAR_OWN : BAR_ENEMY);
   }
 
   private addLoad(type: ResourceType, x: number, y: number, yaw: number): void {
