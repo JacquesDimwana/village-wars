@@ -31,5 +31,9 @@
   "startingWeapons": {
     "sword": 0,
     "bow": 0
+  },
+  "pathfinding": {
+    "maxNodes": 4000,
+    "separation": 0.55
   }
 }

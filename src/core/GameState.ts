@@ -41,12 +41,12 @@ export function addBuilding(
 
 export function addUnit(state: GameState, type: UnitType, ownerId: string, x: number, y: number): Unit {
   const def = UNITS[type];
-  const u: Unit = { id: nextId(state, 'u'), type, ownerId, x, y, hp: def.hp, maxHp: def.hp };
+  const u: Unit = { id: nextId(state, 'u'), type, ownerId, x, y, path: [], hp: def.hp, maxHp: def.hp };
   state.units[u.id] = u;
   return u;
 }
 
-/** Builds the initial state: one village + town hall per spawn point. Inhabitants are abstract (no sprites). */
+/** Builds the initial state: one village + town hall per spawn point. Villagers are spawned by VillagerSystem. */
 export function createGameState(world: WorldGen): GameState {
   const state: GameState = {
     seed: world.seed,
@@ -54,6 +54,7 @@ export function createGameState(world: WorldGen): GameState {
     villages: {},
     buildings: {},
     units: {},
+    villagers: {},
     nextId: 0,
     depletion: {},
     fog: { explored: {}, radius: {}, version: 0 },
