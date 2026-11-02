@@ -47,7 +47,7 @@ const TURN_RATE = 12;
 const MARKER_MS = 1000;
 const CHEST_Y = 0.45;
 const LOAD_Y = 0.93;
-const VILLAGER_TINT = new THREE.Color(0.95, 0.62, 0.4);
+const VILLAGER_TINT = new THREE.Color(0xffffff);
 const FOUNDER_TINT = new THREE.Color(1.0, 0.84, 0.62);
 const TEAM_TINT = 0.22;
 const MARKER_COLORS: Record<MarkerKind, THREE.Color> = {
@@ -241,7 +241,7 @@ export class CrowdRenderer {
     for (const v of Object.values(state.villagers)) {
       if (v.inside) continue;
       const yaw = this.track(v.id, v.x, v.y, dtSec);
-      const clip: CrowdClip = v.path.length > 0 ? 'walk' : v.task === 'working' ? 'work' : 'idle';
+      const clip: CrowdClip = v.path.length > 0 ? (v.carrying ? 'carry' : 'walk') : v.task === 'working' ? 'work' : 'idle';
       const founder = !v.enlistable;
       this.addCharacter(this.batches.villager, v.id, v.x, v.y, yaw, clip, founder ? FOUNDER_TINT : VILLAGER_TINT, founder);
       this.addRings(v.id, v.ownerId, v.x, v.y, selected);

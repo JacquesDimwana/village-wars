@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 
 /**
- * Vertex Animation Textures (VAT): a skinned KayKit character is "baked" once at load
+ * Vertex Animation Textures (VAT): a skinned character is "baked" once at load
  * time into ONE static geometry + float textures holding the skinned position/normal of
  * every vertex for a few sampled frames of each clip. A single InstancedMesh then draws
  * a whole crowd (1 draw call + 1 shadow call per model), the vertex shader reading the
  * animated vertex with texelFetch(gl_VertexID).
  */
 
-export type CrowdClip = 'idle' | 'walk' | 'work' | 'attack';
+export type CrowdClip = 'idle' | 'walk' | 'carry' | 'work' | 'attack';
 
 export interface BakeSpec {
   /** Prop meshes (children of hand slots) that stay visible. */
@@ -185,8 +185,11 @@ export function bakeCharacter(scene: THREE.Object3D, animations: THREE.Animation
   geometry.setAttribute('normal', new THREE.BufferAttribute(nrm.slice(0, vertexCount * 3), 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geometry.setAttribute('vatMask', new THREE.BufferAttribute(mask, 1));
-  const full = new THREE.BufferAttribute(new Uint32Array(indices), 1);
-  const lods = [full, ...LOD_CELLS.map((c) => simplify(indices, pos, uv, partOf, spec.height * c))];
+  let full = new THREE.BufferAttribute(new Uint32Array(indices), 1);
+  for (let cell = 0.02; full.count > 6000 && cell <= 0.14; cell += 0.01) {
+    full = simplify(indices, pos, uv, partOf, spec.height * cell);
+  }
+  const lods = [full, ...LOD_CELLS.map((c) => simplify(Array.from(full.array), pos, uv, partOf, spec.height * c))];
   geometry.setIndex(full);
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, spec.height / 2, 0), spec.height * 2);
 
