@@ -3,7 +3,9 @@ import { PLAYER_ID } from '../core/constants';
 import type { GameState, ResourceType } from '../core/types';
 import { campDisplay } from '../systems/ArmySystem';
 import { assignWorkers, staffing } from '../systems/PopulationSystem';
-import { BUILDING_UI, RESOURCE_UI, UNIT_UI, gi, hexColor } from './icons';
+import { BUILDING_UI, RESOURCE_UI, UNIT_UI, gi, costHtml, hexColor } from './icons';
+import { canAfford } from '../systems/EconomySystem';
+import { nextLevel } from '../systems/ConstructionSystem';
 import { setHtml } from './Sheet';
 
 /** Info card (bottom center) for the tapped building. */
@@ -16,6 +18,7 @@ export class SelectionCard {
   constructor(
     parent: HTMLElement,
     private onArmy: () => void,
+    private onUpgrade: (buildingId: string) => void,
   ) {
     this.el = document.createElement('div');
     this.el.className = 'selection';
@@ -25,6 +28,7 @@ export class SelectionCard {
       if (t.closest('.close')) this.select(null);
       else if (t.closest('[data-act="army"]')) this.onArmy();
       else if (t.closest('[data-act="war"]') && this.buildingId) this.onWar(this.buildingId);
+      else if (t.closest('[data-act="upgrade"]') && this.buildingId) this.onUpgrade(this.buildingId);
     });
   }
 
@@ -67,6 +71,10 @@ export class SelectionCard {
       ? `<button class="btn green" data-act="army">${def.forges ? `${gi('armory')} Forger des armes` : `${gi('army')} Former des troupes`}</button>`
       : '';
     const warBtn = done && b.type === 'armyCamp' ? `<button class="btn blue" data-act="war">${gi('sword')} Partir en guerre</button>` : '';
+    const next = mine && b.buildProgress >= 1 ? nextLevel(b) : null;
+    const upgradeBtn = next
+      ? `<button class="btn blue upgrade" data-act="upgrade" ${canAfford(owner, next.cost) ? '' : 'disabled'}>⬆️ Niveau ${next.level} <span class="costs">${costHtml(next.cost, owner)}</span></button>`
+      : '';
 
     setHtml(this.el, `
       <button class="close" aria-label="Fermer">✕</button>
@@ -76,7 +84,7 @@ export class SelectionCard {
         <span class="owner" style="--c:${hexColor(owner.color)}">${owner.name}</span></div>
       </div>
       ${lines.join('')}
-      <div class="sel-btns">${armyBtn}${warBtn}</div>`);
+      <div class="sel-btns">${armyBtn}${warBtn}${upgradeBtn}</div>`);
   }
 }
 

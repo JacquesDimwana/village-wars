@@ -1,0 +1,95 @@
+/* Placement mode (PlacementBar): ✕ / info / ✔ at the bottom center, HUD buttons hidden. */
+.hud.placement {
+  z-index: 2;
+}
+
+.placement-bar {
+  position: absolute;
+  left: 50%;
+  bottom: var(--safe-bottom);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transform: translateX(-50%) translateY(160%);
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+.placement.open .placement-bar {
+  transform: translateX(-50%) translateY(0);
+}
+
+.placement-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 236px;
+  padding: 6px 14px;
+  border: 3px solid var(--wood-dark);
+  border-radius: 14px;
+  background: linear-gradient(var(--cream), var(--cream-dark));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+}
+
+.placement-info b {
+  font-size: 15px;
+}
+
+.placement-hint {
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: #4f9a2a;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.placement.invalid .placement-hint {
+  background: #c0392b;
+}
+
+.round.green {
+  background: radial-gradient(circle at 40% 30%, #b6f08a, #3f8f1f 70%);
+}
+
+.placement.invalid .round.green {
+  filter: grayscale(0.85);
+  opacity: 0.7;
+}
+
+.placement .round .glyph {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* Main HUD bottom buttons and selection card step aside while placing. */
+body.placing .hud .actions-left,
+body.placing .hud .actions-right,
+body.placing .hud .selection {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.placing .hud .actions-left button,
+body.placing .hud .actions-right button {
+  pointer-events: none;
+}
+
+/* Town hall upgrade button (SelectionCard). */
+.selection .btn.upgrade {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn.upgrade .cost {
+  background: rgba(255, 255, 255, 0.85);
+  text-shadow: none;
+}
+
+.btn.upgrade .costs {
+  flex-wrap: nowrap;
+}

@@ -153,6 +153,8 @@ reste toujours infranchissable et inconstructible. Un bâtiment en construction 
 une barre de progression et ne produit rien. Les unités ne gênent jamais la construction :
 un villageois ou un soldat qui se trouve sous un bâtiment posé se décale vers la tuile libre
 la plus proche.
+Amélioration de l'hôtel de ville : depuis sa fiche, instantanée, coût par niveau dans
+`buildings.json` (`levels`).
 
 ## 6. Unités
 
@@ -220,7 +222,7 @@ ramène au camp où ils redeviennent comptés sans être dessinés.
   (attaquer selon la cible : voir combat). Avec des soldats sélectionnés, la barre
   propose « Rentrer » (retour au camp).
 - Tap sur un camp d'armée : fiche du camp (« Former des troupes », « Partir en guerre »).
-- Bouton « Construire » : menu bâtiments → fantôme vert/rouge → tap pour poser
+- Bouton « Construire » : menu bâtiments → fantôme vert/rouge (glisser ou taper la carte pour le déplacer) → ✔ pour poser, ✕ pour annuler
 
 **Sur ordinateur (souris + clavier)**, mêmes règles, gestes de RTS classiques :
 

@@ -3,14 +3,16 @@ import { BUILDINGS, GAME, UNITS, WEAPONS } from './core/config';
 import { PLAYER_ID } from './core/constants';
 import { bus } from './core/EventBus';
 import { addBuilding, createGameState, townHallOf } from './core/GameState';
-import type { Building, GameState, UnitType, WeaponType } from './core/types';
+import type { Building, BuildingType, GameState, UnitType, WeaponType } from './core/types';
 import { RtsCamera } from './input/RtsCamera';
 import { UnitControl } from './input/UnitControl';
 import { Assets } from './render/Assets';
 import { CrowdRenderer } from './render/CrowdRenderer';
 import { EntityRenderer } from './render/EntityRenderer';
+import { PlacementGhost } from './render/PlacementGhost';
 import { Terrain, type ViewBounds } from './render/Terrain';
 import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
+import { ConstructionSystem, canPlace, placeBuilding, upgradeBuilding } from './systems/ConstructionSystem';
 import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
 import { ArmySystem } from './systems/ArmySystem';
@@ -21,6 +23,7 @@ import { PopulationSystem, convertToWarrior, demobilize } from './systems/Popula
 import { VillagerSystem } from './systems/VillagerSystem';
 import { Hud, type HudActions } from './ui/Hud';
 import { Minimap } from './ui/Minimap';
+import { PlacementBar } from './ui/PlacementBar';
 import { WorldGen } from './world/WorldGen';
 
 /** Fixed logic tick so game rules don't depend on frame rate. */
@@ -46,6 +49,8 @@ export class Game {
   unitControl!: UnitControl;
   private hud: Hud;
   private minimap: Minimap;
+  private placement: PlacementGhost;
+  private placementBar: PlacementBar;
   private shadowDistance = 0;
   private sun: THREE.DirectionalLight;
   private timer = new THREE.Timer();
@@ -61,6 +66,7 @@ export class Game {
   private gather = new GatherSystem(this.movement, bus);
   private army = new ArmySystem(this.movement);
   private combat = new CombatSystem(this.movement, bus);
+  private construction = new ConstructionSystem(bus);
 
   constructor(
     container: HTMLElement,
@@ -100,7 +106,11 @@ export class Game {
     this.terrain = new Terrain(this.world, assets, GAME.chunkSize);
     this.entities = new EntityRenderer(assets);
     this.crowd = new CrowdRenderer(assets, (tx, ty) => this.world.getTile(tx, ty));
-    this.scene.add(this.terrain.root, this.entities.root, this.crowd.root);
+    this.placement = new PlacementGhost(assets, this.cam, this.renderer.domElement, (type, tx, ty) =>
+      canPlace(this.state, this.world, type, tx, ty, PLAYER_ID),
+    );
+    this.placementBar = new PlacementBar(() => this.confirmPlacement(), () => this.stopPlacement());
+    this.scene.add(this.terrain.root, this.entities.root, this.crowd.root, this.placement.root);
 
     const hall = townHallOf(this.state, PLAYER_ID);
     const half = BUILDINGS.townHall.size / 2;
@@ -154,6 +164,7 @@ export class Game {
     this.followZoom();
     this.entities.sync(this.state);
     this.crowd.sync(this.state, dt, this.selectedIds, this.cam.distance);
+    this.updatePlacement();
     this.hud.update();
     this.unitControl.update();
     this.minimap.update(performance.now());
@@ -167,13 +178,13 @@ export class Game {
     this.population.update(this.state, dt);
     this.economy.update(this.state, dt);
     this.armory.update(this.state, dt);
+    this.construction.update(this.state, dt);
     this.villagers.update(this.state, dt);
     this.gather.update(this.state, dt);
     this.army.update(this.state, dt);
-    this.combat.update(this.state, dt);
     this.movement.update(this.state, dt);
+    this.combat.update(this.state, dt);
     this.fog.update(this.state, dt);
-    // TODO(agent A) construction.update(this.state, dt)
     // TODO(agent D) ai
     // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
   }
@@ -259,10 +270,43 @@ export class Game {
         const last = Object.values(this.state.units).filter((u) => u.ownerId === PLAYER_ID && u.type === unit).pop();
         if (last && demobilize(this.state, last.id, bus)) notify('Le guerrier retourne au travail');
       },
-      build: (type) => notify(`${BUILDINGS[type].name} : placement sur la carte bientôt disponible`),
+      build: (type) => this.startPlacement(type),
+      upgrade: (buildingId) => {
+        const res = upgradeBuilding(this.state, buildingId, bus);
+        notify(res.ok ? `${BUILDINGS[this.state.buildings[buildingId].type].name} amélioré !` : res.reason);
+      },
       focus: (x, y) => this.cam.lookAt(x, y + 1),
       home: () => this.cam.lookAt(home.x, home.y + 1),
     };
+  }
+
+  /** Placement mode: the build panel closes and a ghost of the building follows the player's finger. */
+  private startPlacement(type: BuildingType): void {
+    this.hud.openSheet(null);
+    bus.emit('building:selected', { buildingId: null });
+    this.placement.start(type, this.cam.target.x, this.cam.target.z);
+    this.placementBar.show(type);
+  }
+
+  private stopPlacement(): void {
+    this.placement.stop();
+    this.placementBar.hide();
+  }
+
+  private confirmPlacement(): void {
+    const { type, tx, ty } = this.placement;
+    if (!type) return;
+    const res = placeBuilding(this.state, this.world, type, tx, ty, PLAYER_ID, bus);
+    if (!res.ok) return bus.emit('notify', { message: res.reason });
+    bus.emit('notify', { message: `${BUILDINGS[type].name} : construction lancée` });
+    this.stopPlacement();
+  }
+
+  private updatePlacement(): void {
+    const res = this.placement.update();
+    if (res && this.placement.type) {
+      this.placementBar.update(this.placement.type, this.state.villages[PLAYER_ID], res.ok ? null : res.reason);
+    }
   }
 
   /** Player-visible building under a screen point (raycast on the building models). */
@@ -275,6 +319,7 @@ export class Game {
   }
 
   private handleTap(ndc: THREE.Vector2, shift = false, mouse = false): void {
+    if (this.placement.active) return this.placement.tapAt(ndc);
     const b = this.buildingAt(ndc);
     if (this.unitControl.handleTap(ndc, b, mouse, shift)) return;
     if (b) {
