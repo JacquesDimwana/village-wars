@@ -24,10 +24,8 @@ import { WorldGen } from './world/WorldGen';
 
 /** Fixed logic tick so game rules don't depend on frame rate. */
 const TICK_MS = 100;
-const SKY = 0x9fd4f0;
-/** Distance fog and shadow area follow the zoom (values tuned at distance 20). */
-const FOG_NEAR_OFFSET = 15;
-const FOG_FAR_OFFSET = 55;
+const SKY = 0xbac6c3;
+/** Shadow area follows the zoom. */
 const SHADOW_EXTENT_PER_DISTANCE = 1.4;
 /** Extra ground loaded around the visible area (tiles), so panning doesn't show holes. */
 const VIEW_MARGIN = 6;
@@ -68,17 +66,20 @@ export class Game {
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
 
     this.scene.background = new THREE.Color(SKY);
-    this.scene.fog = new THREE.Fog(SKY, 35, 75);
+    this.scene.fog = new THREE.Fog(SKY, 55, 110);
 
-    this.scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x5b6b3a, 1.6));
-    this.sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
+    this.scene.add(new THREE.HemisphereLight(0xc5d7e4, 0x807966, 1.0));
+    this.sun = new THREE.DirectionalLight(0xfff1d9, 2.0);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(1024, 1024);
     const s = this.sun.shadow.camera;
     s.left = -28;
     s.right = 28;
@@ -144,7 +145,7 @@ export class Game {
 
     const t = this.cam.target;
     this.terrain.update(t, this.cam.viewRadius, this.cam.camera.position, this.viewBounds());
-    this.sun.position.set(t.x - 18, 30, t.z + 10);
+    this.sun.position.set(t.x + 40, 65, t.z + 30);
     this.sun.target.position.copy(t);
     this.followZoom();
     this.entities.sync(this.state);
@@ -190,14 +191,11 @@ export class Game {
     return b;
   }
 
-  /** Keeps distance fog and the shadow area proportional to the zoom so dezooming stays readable. */
+  /** Keeps the shadow area proportional to the zoom. */
   private followZoom(): void {
     const d = this.cam.distance;
     if (d === this.shadowDistance) return;
     this.shadowDistance = d;
-    const fog = this.scene.fog as THREE.Fog;
-    fog.near = d + FOG_NEAR_OFFSET;
-    fog.far = d + FOG_FAR_OFFSET;
     const e = d * SHADOW_EXTENT_PER_DISTANCE;
     const s = this.sun.shadow.camera;
     s.left = s.bottom = -e;

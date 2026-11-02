@@ -4,6 +4,7 @@ import type { TileType } from '../core/types';
 import type { WorldGen } from '../world/WorldGen';
 import { NATURE, type Assets, type MeshPart } from './Assets';
 import { mergePlaced, simplifyStatic, type MergeEntry } from './TerrainLod';
+import { natureMaterial, oreVeins, prepareNature } from './NatureAssets';
 
 /** Top height of each tile type (world units, 1 tile = 1 unit). */
 export const TILE_HEIGHT: Record<TileType, number> = {
@@ -16,19 +17,19 @@ export const TILE_HEIGHT: Record<TileType, number> = {
 };
 
 export const TILE_COLOR: Record<TileType, number> = {
-  water: 0x2b6a8f,
-  sand: 0xe6d29a,
-  grass: 0x86c552,
-  forest: 0x6aae3e,
-  rock: 0xa5a29a,
-  ore: 0x9c8a7a,
+  water: 0x557e84,
+  sand: 0xb7a483,
+  grass: 0x87966c,
+  forest: 0x536d4d,
+  rock: 0xa39f91,
+  ore: 0x75675d,
 };
 
-const ORE_TINT = new THREE.Color(0.95, 0.55, 0.35);
+const ORE_TINT = new THREE.Color(0.72, 0.62, 0.56);
 
 /**
  * Level of detail per chunk, from the camera distance to the chunk (strategic view):
- * 0 = instanced KayKit models; 1 = simplified models merged into one mesh;
+ * 0 = instanced nature models; 1 = simplified models merged into one mesh;
  * 2 = same, one tree out of two (bigger) and flat ground tiles.
  */
 const LOD_DISTANCES = [55, 85];
@@ -72,6 +73,7 @@ export class Terrain {
   /** Simplified models per level: [level - 1][variant][part]. */
   private lodTrees: THREE.BufferGeometry[][][];
   private lodRocks: THREE.BufferGeometry[][][];
+  private lodOres: THREE.BufferGeometry[][][];
   private lodMat: THREE.MeshStandardMaterial;
 
   constructor(
@@ -79,27 +81,30 @@ export class Terrain {
     assets: Assets,
     private chunkSize: number,
   ) {
-    this.treeParts = NATURE.trees.map((n) => assets.parts(n, n.startsWith('trees_') ? 1.05 : 0.75));
-    this.rockParts = NATURE.rocks.map((n) => assets.parts(n, 0.7));
-    this.oreParts = this.rockParts.map((parts) =>
-      parts.map((p) => {
-        const mat = (p.material as THREE.MeshStandardMaterial).clone();
-        mat.color.multiply(ORE_TINT);
-        return { geometry: p.geometry, material: mat };
-      }),
-    );
+    const rawTrees = NATURE.trees.map((n) => assets.parts(n, 0.75));
+    const rawRocks = NATURE.rocks.map((n) => assets.parts(n, 0.7));
+    const material = natureMaterial([...rawTrees, ...rawRocks]);
+    this.treeParts = rawTrees.map((parts) => prepareNature(parts, material, true));
+    this.rockParts = rawRocks.map((parts) => prepareNature(parts, material, false));
+    [...rawTrees, ...rawRocks].flat().forEach((part) => part.geometry.dispose());
+    const oreMaterial = material.clone();
+    oreMaterial.color.copy(ORE_TINT);
+    this.oreParts = this.rockParts.map((parts) => parts.map((p) => ({
+      geometry: oreVeins(p.geometry), material: oreMaterial,
+    })));
 
     const simplified = (variants: MeshPart[][], cell: number): THREE.BufferGeometry[][] =>
       variants.map((parts) => parts.map((p) => simplifyStatic(p.geometry, cell)));
     this.lodTrees = LOD_CELLS.map((c) => simplified(this.treeParts, c));
     this.lodRocks = LOD_CELLS.map((c) => simplified(this.rockParts, c * 0.6));
-    this.lodMat = (this.treeParts[0][0].material as THREE.MeshStandardMaterial).clone();
+    this.lodOres = this.lodRocks.map((variants) => variants.map((parts) => parts.map(oreVeins)));
+    this.lodMat = material.clone();
     this.lodMat.vertexColors = true;
 
     // One big translucent water plane following the camera.
     this.water = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
-      new THREE.MeshLambertMaterial({ color: 0x4aa3d8, transparent: true, opacity: 0.82 }),
+      new THREE.MeshLambertMaterial({ color: 0x557e84, transparent: true, opacity: 0.82 }),
     );
     this.water.position.y = -0.12;
     this.water.receiveShadow = true;
@@ -221,7 +226,7 @@ export class Terrain {
         variants.forEach((geos, v) => geos.forEach((geometry) => entries.push({ geometry, matrices: matrices[v], color })));
       add(this.lodTrees[lod - 1], trees, white);
       add(this.lodRocks[lod - 1], rocks, white);
-      add(this.lodRocks[lod - 1], ores, ORE_TINT);
+      add(this.lodOres[lod - 1], ores, ORE_TINT);
       const merged = mergePlaced(entries);
       if (merged) {
         const mesh = new THREE.Mesh(merged, this.lodMat);

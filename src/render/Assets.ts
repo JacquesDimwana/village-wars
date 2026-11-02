@@ -26,11 +26,11 @@ export const BUILDING_MODELS: Record<BuildingType, string[]> = {
 
 export const NATURE = {
   /** Weighted by repetition: mostly cheap single trees, some clusters. */
-  trees: ['tree_single_A', 'tree_single_A', 'tree_single_B', 'tree_single_B', 'trees_A_small'],
-  rocks: ['rock_single_A', 'rock_single_B', 'rock_single_C', 'rock_single_D', 'rock_single_E'],
+  trees: ['CommonTree_5', 'Pine_5'],
+  rocks: ['Rock_Medium_1', 'Rock_Medium_2'],
 };
 
-const NEUTRAL = ['building_scaffolding', 'building_destroyed', 'resource_stone', 'resource_lumber'];
+const NEUTRAL = ['building_scaffolding', 'building_destroyed', 'resource_stone', 'resource_lumber', 'rock_single_A', 'rock_single_C', 'rock_single_E'];
 
 export const CHARACTER_FILES: Record<UnitType, string> = {
   knight: 'characters/Knight.glb',
@@ -112,7 +112,8 @@ export class Assets {
       }
       files.push(`kaykit/flag_${c}.gltf`);
     }
-    for (const n of new Set([...NATURE.trees, ...NATURE.rocks, ...NEUTRAL])) files.push(`kaykit/${n}.gltf`);
+    for (const n of NEUTRAL) files.push(`kaykit/${n}.gltf`);
+    for (const n of [...NATURE.trees, ...NATURE.rocks]) files.push(`quaternius/nature/${n}.gltf`);
     const charFiles = Object.values(CHARACTER_FILES);
     const total = files.length + charFiles.length;
     let done = 0;
@@ -155,7 +156,7 @@ export class Assets {
    * scaled so its widest horizontal side equals `footprint`, base at y=0, centered.
    */
   parts(name: string, footprint: number): MeshPart[] {
-    const gltf = this.require(`kaykit/${name}.gltf`);
+    const gltf = this.require(`quaternius/nature/${name}.gltf`);
     gltf.scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const size = box.getSize(new THREE.Vector3());
