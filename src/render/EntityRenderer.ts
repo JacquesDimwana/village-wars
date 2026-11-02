@@ -97,6 +97,6 @@ export class EntityRenderer {
     const style = teamStyle(b.ownerId);
     if (b.type === 'armyCamp') return this.assets.armyCamp(style.kaykit, style.tint);
     const variant = Number(b.id.split('-')[1]) || 0;
-    return this.assets.building(b.type, style.kaykit, variant, size * 0.95, style.tint);
+    return this.assets.building(b.type, style.kaykit, variant, size * 0.95, style.marker);
   }
 }

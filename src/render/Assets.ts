@@ -4,27 +4,13 @@ import { paletteCharacter, rangerAtlas } from './QuaterniusMaterials';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { BuildingType } from '../core/types';
 import type { KayKitColor } from './teams';
+import { BuildingKit, KIT_PARTS } from './BuildingKit';
 import { bakeCharacter, type BakeSpec, type VatModel } from './VatBaker';
 
 const BASE = `${import.meta.env.BASE_URL}models/`;
 const COLORS: KayKitColor[] = ['blue', 'red', 'green', 'yellow'];
 /** Keeps very tall models (castle, towers) from towering over the map. */
 const MAX_HEIGHT_RATIO = 1.25;
-
-/** KayKit model used for each building type (team-colored variants exist for all of them). */
-export const BUILDING_MODELS: Record<BuildingType, string[]> = {
-  townHall: ['castle'],
-  house: ['home_A', 'home_B'],
-  lumberCamp: ['lumbermill'],
-  quarry: ['tower_base'],
-  mine: ['mine'],
-  smelter: ['watermill'],
-  barracks: ['barracks'],
-  armory: ['blacksmith'],
-  tower: ['tower_A'],
-  /** No KayKit model: composed in Assets.armyCamp(). */
-  armyCamp: [],
-};
 
 export const NATURE = {
   /** Weighted by repetition: mostly cheap single trees, some clusters. */
@@ -78,17 +64,16 @@ export class Assets {
   private gltfs = new Map<string, GLTF>();
   private crowd = new Map<CrowdModelKind, VatModel>();
   private loader = new GLTFLoader();
+  private buildingKit?: BuildingKit;
 
   async loadAll(onProgress: (ratio: number) => void): Promise<void> {
     const files: string[] = [];
     for (const c of COLORS) {
-      for (const names of Object.values(BUILDING_MODELS)) {
-        for (const n of names) files.push(`kaykit/building_${n}_${c}.gltf`);
-      }
       files.push(`kaykit/flag_${c}.gltf`);
     }
     for (const n of NEUTRAL) files.push(`kaykit/${n}.gltf`);
     for (const n of [...NATURE.trees, ...NATURE.rocks]) files.push(`quaternius/nature/${n}.gltf`);
+    files.push(...KIT_PARTS.map((name) => `quaternius/medieval/${name}.gltf`));
     const charFiles = Object.values(CROWD_SPECS).map(({ file }) => file);
     const fbxLoader = new FBXLoader();
     const characters = new Map<string, THREE.Group>();
@@ -106,6 +91,8 @@ export class Assets {
         tick();
       }),
     ]);
+    const atlas = await new THREE.TextureLoader().loadAsync(`${BASE}quaternius/medieval/atlas.png`);
+    this.buildingKit = new BuildingKit((name) => this.require(`quaternius/medieval/${name}.gltf`).scene, atlas);
     for (const [kind, { file, spec }] of Object.entries(CROWD_SPECS) as [CrowdModelKind, (typeof CROWD_SPECS)[CrowdModelKind]][]) {
       const scene = characters.get(file);
       if (!scene) throw new Error(`Character not loaded: ${file}`);
@@ -117,9 +104,9 @@ export class Assets {
 
   /** Clone of a building model, scaled to fit `footprint` tiles, base at y=0, centered. */
   building(type: BuildingType, color: KayKitColor, variant: number, footprint: number, tint?: THREE.Color): THREE.Object3D {
-    const names = BUILDING_MODELS[type];
-    const name = names[variant % names.length];
-    return this.fitted(`kaykit/building_${name}_${color}.gltf`, footprint, tint);
+    if (type === 'armyCamp') return this.armyCamp(color, tint);
+    if (!this.buildingKit) throw new Error('Building kit not loaded');
+    return this.buildingKit.create(type, variant, footprint, tint ?? new THREE.Color(0xffffff));
   }
 
   neutral(name: string, footprint: number): THREE.Object3D {
