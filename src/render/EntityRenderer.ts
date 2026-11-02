@@ -68,13 +68,6 @@ export class EntityRenderer {
     const model = this.buildingModel(b, completed);
     root.add(model);
 
-    const style = teamStyle(b.ownerId);
-    if (b.type === 'townHall') {
-      const flag = this.assets.flag(style.kaykit, style.tint);
-      flag.position.set(size * 0.42, 0, size * 0.42);
-      root.add(flag);
-    }
-
     // Bar shown when damaged (green) or under construction (yellow). Faces the camera yaw.
     const barWidth = Math.min(size, 2);
     const hpGroup = new THREE.Group();
@@ -95,8 +88,7 @@ export class EntityRenderer {
     const size = BUILDINGS[b.type].size;
     if (!completed) return this.assets.neutral('building_scaffolding', size * 0.85);
     const style = teamStyle(b.ownerId);
-    if (b.type === 'armyCamp') return this.assets.armyCamp(style.kaykit, style.tint);
     const variant = Number(b.id.split('-')[1]) || 0;
-    return this.assets.building(b.type, style.kaykit, variant, size * 0.95, style.marker);
+    return this.assets.building(b.type, style.kaykit, variant, size * 0.95, b.type === 'townHall' ? style.tint : style.marker);
   }
 }

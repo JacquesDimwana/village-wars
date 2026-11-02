@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { paletteCharacter, rangerAtlas } from './QuaterniusMaterials';
+// Three.js does not currently ship types for its bundled meshoptimizer.
+// @ts-expect-error No declaration for the bundled meshoptimizer module.
+import { MeshoptSimplifier } from 'three/addons/libs/meshopt_simplifier.module.js';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import type { BuildingType } from '../core/types';
 import type { KayKitColor } from './teams';
@@ -51,8 +54,6 @@ const CROWD_SPECS: Record<CrowdModelKind, { file: string; spec: BakeSpec }> = {
   },
 };
 
-const DIRT = 0x9a7b52;
-
 /** A static model flattened into geometry+material parts (for InstancedMesh). */
 export interface MeshPart {
   geometry: THREE.BufferGeometry;
@@ -69,7 +70,7 @@ export class Assets {
   async loadAll(onProgress: (ratio: number) => void): Promise<void> {
     const files: string[] = [];
     for (const c of COLORS) {
-      files.push(`kaykit/flag_${c}.gltf`);
+      files.push(`kaykit/flag_${c}.gltf`, `kaykit/building_castle_${c}.gltf`);
     }
     for (const n of NEUTRAL) files.push(`kaykit/${n}.gltf`);
     for (const n of [...NATURE.trees, ...NATURE.rocks]) files.push(`quaternius/nature/${n}.gltf`);
@@ -91,6 +92,33 @@ export class Assets {
         tick();
       }),
     ]);
+    // Reduce the original castle once per team; instances share the resulting geometry.
+    await MeshoptSimplifier.ready;
+    for (const color of COLORS) {
+      const scene = this.require(`kaykit/building_castle_${color}.gltf`).scene;
+      const meshes: THREE.Mesh[] = [];
+      scene.traverse((object) => { if (object instanceof THREE.Mesh) meshes.push(object); });
+      for (const mesh of meshes) {
+        const geometry = mesh.geometry;
+        const triangles = (geometry.index?.count ?? geometry.getAttribute('position').count) / 3;
+        if (triangles > 2900) {
+          const position = geometry.getAttribute('position');
+          const positions = new Float32Array(position.count * 3);
+          for (let i = 0; i < position.count; i++) {
+            positions.set([position.getX(i), position.getY(i), position.getZ(i)], i * 3);
+          }
+          const indices = geometry.index?.array;
+          if (!indices || !(indices instanceof Uint16Array || indices instanceof Uint32Array)) {
+            throw new Error('Castle geometry requires indexed triangles');
+          }
+          const [simplified] = MeshoptSimplifier.simplifySloppy(indices, positions, 3, null, 8400, 1) as [Uint16Array | Uint32Array, number];
+          if (simplified.length > 9000) throw new Error('Castle exceeds triangle budget');
+          mesh.geometry = geometry.clone();
+          mesh.geometry.setIndex(new THREE.BufferAttribute(simplified, 1));
+          geometry.dispose();
+        }
+      }
+    }
     const atlas = await new THREE.TextureLoader().loadAsync(`${BASE}quaternius/medieval/atlas.png`);
     this.buildingKit = new BuildingKit((name) => this.require(`quaternius/medieval/${name}.gltf`).scene, atlas);
     for (const [kind, { file, spec }] of Object.entries(CROWD_SPECS) as [CrowdModelKind, (typeof CROWD_SPECS)[CrowdModelKind]][]) {
@@ -104,7 +132,7 @@ export class Assets {
 
   /** Clone of a building model, scaled to fit `footprint` tiles, base at y=0, centered. */
   building(type: BuildingType, color: KayKitColor, variant: number, footprint: number, tint?: THREE.Color): THREE.Object3D {
-    if (type === 'armyCamp') return this.armyCamp(color, tint);
+    if (type === 'townHall') return this.fitted(`kaykit/building_castle_${color}.gltf`, footprint, tint);
     if (!this.buildingKit) throw new Error('Building kit not loaded');
     return this.buildingKit.create(type, variant, footprint, tint ?? new THREE.Color(0xffffff));
   }
@@ -147,40 +175,6 @@ export class Assets {
     const m = this.crowd.get(kind);
     if (!m) throw new Error(`Crowd model not baked: ${kind}`);
     return m;
-  }
-
-  /**
-   * Army camp (4x4, no KayKit model): beaten-earth yard, team flags at the corners,
-   * a few lumber / stone piles and rocks as decoration. Centered, base at y=0.
-   */
-  armyCamp(color: KayKitColor, tint?: THREE.Color): THREE.Object3D {
-    const root = new THREE.Group();
-    const yard = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.8, 3.8).rotateX(-Math.PI / 2),
-      new THREE.MeshStandardMaterial({ color: DIRT, roughness: 1 }),
-    );
-    yard.position.y = 0.015;
-    yard.receiveShadow = true;
-    root.add(yard);
-    for (const [x, z] of [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]]) {
-      const flag = this.flag(color, tint);
-      flag.position.set(x, 0, z);
-      root.add(flag);
-    }
-    const decor: [string, number, number, number, number][] = [
-      ['resource_lumber', 0.9, -1.15, 1.25, 0.3],
-      ['resource_stone', 0.6, 1.2, -1.2, 1.2],
-      ['rock_single_A', 0.35, -1.55, 0.4, 0],
-      ['rock_single_C', 0.3, 1.55, 0.6, 0],
-      ['rock_single_E', 0.3, 0.2, -1.6, 0],
-    ];
-    for (const [name, size, x, z, rot] of decor) {
-      const o = this.neutral(name, size);
-      o.position.set(x, 0, z);
-      o.rotation.y = rot;
-      root.add(o);
-    }
-    return root;
   }
 
   /** Scales to fit `footprint` tiles wide, but never taller than `footprint * MAX_HEIGHT_RATIO`. */
