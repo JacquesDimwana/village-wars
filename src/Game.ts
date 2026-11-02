@@ -9,7 +9,7 @@ import { UnitControl } from './input/UnitControl';
 import { Assets } from './render/Assets';
 import { CrowdRenderer } from './render/CrowdRenderer';
 import { EntityRenderer } from './render/EntityRenderer';
-import { Terrain } from './render/Terrain';
+import { Terrain, type ViewBounds } from './render/Terrain';
 import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
 import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
@@ -29,6 +29,8 @@ const SKY = 0x9fd4f0;
 const FOG_NEAR_OFFSET = 15;
 const FOG_FAR_OFFSET = 55;
 const SHADOW_EXTENT_PER_DISTANCE = 1.4;
+/** Extra ground loaded around the visible area (tiles), so panning doesn't show holes. */
+const VIEW_MARGIN = 6;
 
 export class Game {
   readonly world = new WorldGen(GAME.seed);
@@ -49,6 +51,7 @@ export class Game {
   private sun: THREE.DirectionalLight;
   private timer = new THREE.Timer();
   private accumulator = 0;
+  private ndc = new THREE.Vector2();
 
   private population = new PopulationSystem(bus);
   private economy = new EconomySystem(bus);
@@ -140,7 +143,7 @@ export class Game {
     }
 
     const t = this.cam.target;
-    this.terrain.update(t, this.cam.viewRadius);
+    this.terrain.update(t, this.cam.viewRadius, this.cam.camera.position, this.viewBounds());
     this.sun.position.set(t.x - 18, 30, t.z + 10);
     this.sun.target.position.copy(t);
     this.followZoom();
@@ -168,6 +171,23 @@ export class Game {
     // TODO(agent C) combat
     // TODO(agent D) ai
     // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
+  }
+
+  /**
+   * Ground area seen by the camera (screen corners projected on y=0) plus a margin,
+   * so the terrain only loads the chunks on screen. Undefined if a corner sees the sky.
+   */
+  private viewBounds(): ViewBounds | undefined {
+    const b: ViewBounds = { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity };
+    for (const [x, y] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const p = this.cam.groundPoint(this.ndc.set(x, y));
+      if (!p) return undefined;
+      b.minX = Math.min(b.minX, p.x - VIEW_MARGIN);
+      b.maxX = Math.max(b.maxX, p.x + VIEW_MARGIN);
+      b.minZ = Math.min(b.minZ, p.z - VIEW_MARGIN);
+      b.maxZ = Math.max(b.maxZ, p.z + VIEW_MARGIN);
+    }
+    return b;
   }
 
   /** Keeps distance fog and the shadow area proportional to the zoom so dezooming stays readable. */
