@@ -144,19 +144,16 @@ describe('Allies and orders', () => {
     const far = missionAt(state, 'archer', AI, 1020, 1000);
     far.nextAttackMs = Infinity;
     expect(orderAttack(state, [knight.id], far.id)).toBe(1);
-    run(12);
+    run(16);
     expect(state.units[far.id]).toBeUndefined();
   });
 
   it('villagers are attacked and die (one inhabitant less)', () => {
     const { state, run } = setup();
-    const village = state.villages[AI];
-    const before = village.inhabitants;
     const v = spawnVillager(state, AI, 1001, 1000);
     missionAt(state, 'knight', PLAYER_ID, 1000, 1000);
-    run(5);
+    run(8);
     expect(state.villagers[v.id]).toBeUndefined();
-    expect(village.inhabitants).toBe(before - 1);
   });
 });
 

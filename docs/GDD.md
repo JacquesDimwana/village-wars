@@ -111,16 +111,16 @@ L’armurerie est un bâtiment de recherche, sans travailleurs ni fabrication d�
 
 ## 8. Rythme et équilibrage
 
-Cibles de jeu, à vérifier par parties et simulation après implémentation ; aucune mesure existante n’est revendiquée. Les trajets, files et pression ennemie font varier ces jalons.
+Cibles de jeu à vérifier par parties. La simulation économique seed 42 de `tests/pacing.test.ts` utilise les trajets et les files, sans pression ennemie ; les chantiers progressent actuellement automatiquement. Les résultats ne représentent donc pas encore une partie complète.
 
-| Jalon | Temps visé |
-|---|---:|
-| Installation en âge I : première maison et premiers dépôts | 1–3 min |
-| Passage à l’âge II terminé | 5–8 min |
-| Première attaque organisée | 7–10 min |
-| Armée de 15 soldats | 12–16 min |
-| Passage à l’âge III terminé | 13–18 min |
-| Fin de partie | 15–25 min |
+| Jalon | Temps visé | Simulé |
+|---|---:|---:|
+| Installation en âge I : première maison et premiers dépôts | 1–3 min | Maison 25 s ; camps de bûcherons et de mineurs et moulin terminés à 1 min 06 s |
+| Passage à l’âge II terminé | 5–8 min | Non simulable : âges absents |
+| Première attaque organisée | 7–10 min | Non simulé ; caserne terminée à 3 min 03,5 s |
+| Armée de 15 soldats | 12–16 min | Non simulé |
+| Passage à l’âge III terminé | 13–18 min | Non simulable : âges absents |
+| Fin de partie | 15–25 min | Non simulé |
 
 Le coût d’une armée concurrence villageois, maisons et âges pour les ressources et places. Plusieurs casernes permettent de former en parallèle ; les unités ne retirent pas de villageois de l’économie.
 

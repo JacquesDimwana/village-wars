@@ -19,7 +19,7 @@ function find(type: TileType): { tx: number; ty: number } {
 describe('Buildable tiles', () => {
   it('trees, rocks, ore and water block construction', () => {
     const state = createGameState(world);
-    for (const t of ['forest', 'rock', 'ore', 'water'] as TileType[]) {
+    for (const t of ['forest', 'rock', 'iron', 'water'] as TileType[]) {
       const { tx, ty } = find(t);
       expect(canBuildOnTile(state, world, tx, ty)).toBe(false);
     }

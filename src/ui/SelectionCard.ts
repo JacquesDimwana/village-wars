@@ -1,11 +1,12 @@
-import { BUILDINGS } from '../core/config';
+import { BUILDINGS, UNITS, VILLAGER } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
-import type { GameState, ResourceType } from '../core/types';
+import type { GameState } from '../core/types';
 import { campDisplay } from '../systems/ArmySystem';
-import { assignWorkers, staffing } from '../systems/PopulationSystem';
-import { BUILDING_UI, RESOURCE_UI, UNIT_UI, gi, costHtml, hexColor } from './icons';
+import { BUILDING_UI, UNIT_UI, gi, costHtml, hexColor } from './icons';
 import { canAfford } from '../systems/EconomySystem';
 import { nextLevel } from '../systems/ConstructionSystem';
+import { capacityOf, populationOf, reservedOf, type TrainingType } from '../systems/TrainingSystem';
+import type { ArmyActions } from './ArmyPanel';
 import { setHtml } from './Sheet';
 
 /** Info card (bottom center) for the tapped building. */
@@ -19,13 +20,19 @@ export class SelectionCard {
     parent: HTMLElement,
     private onArmy: () => void,
     private onUpgrade: (buildingId: string) => void,
+    private actions: ArmyActions,
   ) {
     this.el = document.createElement('div');
     this.el.className = 'selection';
     parent.appendChild(this.el);
     this.el.addEventListener('click', (e) => {
       const t = e.target as HTMLElement;
-      if (t.closest('.close')) this.select(null);
+      const train = t.closest<HTMLElement>('[data-train]');
+      const cancel = t.closest<HTMLElement>('[data-cancel]');
+      if (train && this.buildingId) this.actions.train(this.buildingId, train.dataset.train as TrainingType);
+      else if (cancel && this.buildingId) this.actions.cancel(this.buildingId, Number(cancel.dataset.cancel));
+      else if (t.closest('[data-rally]') && this.buildingId) this.actions.rally(this.buildingId);
+      else if (t.closest('.close')) this.select(null);
       else if (t.closest('[data-act="army"]')) this.onArmy();
       else if (t.closest('[data-act="war"]') && this.buildingId) this.onWar(this.buildingId);
       else if (t.closest('[data-act="upgrade"]') && this.buildingId) this.onUpgrade(this.buildingId);
@@ -52,13 +59,6 @@ export class SelectionCard {
     if (b.buildProgress < 1) {
       lines.push(bar(gi('build'), b.buildProgress, `Construction ${Math.floor(b.buildProgress * 100)} %`, 'build'));
     } else if (mine) {
-      const assignment = assignWorkers(state, PLAYER_ID);
-      if (def.workerSlots) lines.push(`<div class="stat">${gi('workers', 'c-workers')} ${assignment.get(b.id) ?? 0} / ${def.workerSlots} travailleurs</div>`);
-      const ratio = staffing(b, assignment);
-      for (const [res, rate] of Object.entries(def.produces ?? {}) as [ResourceType, number][]) {
-        const ui = RESOURCE_UI.find((r) => r.key === res)!;
-        lines.push(`<div class="stat">${ui.icon} +${(rate * ratio).toFixed(1)}/s <small>(max ${rate}/s)</small></div>`);
-      }
       if (b.type === 'armyCamp') {
         const d = campDisplay(state, b.id);
         lines.push(`<div class="stat">${UNIT_UI.knight.icon} chevaliers ×${d.byType.knight} · ${UNIT_UI.archer.icon} archers ×${d.byType.archer}</div>`);
@@ -67,8 +67,8 @@ export class SelectionCard {
       if (def.population) lines.push(`<div class="stat">${gi('house')} +${def.population * b.level} places</div>`);
     }
     const done = mine && b.buildProgress >= 1;
-    const armyBtn = done && (def.forges || def.converts || b.type === 'armyCamp')
-      ? `<button class="btn green" data-act="army">${def.forges ? `${gi('armory')} Forger des armes` : `${gi('army')} Former des troupes`}</button>`
+    const armyBtn = done && b.type === 'armyCamp'
+      ? `<button class="btn green" data-act="army">${gi('army')} Former des troupes</button>`
       : '';
     const warBtn = done && b.type === 'armyCamp' ? `<button class="btn blue" data-act="war">${gi('sword')} Partir en guerre</button>` : '';
     const next = mine && b.buildProgress >= 1 ? nextLevel(b) : null;
@@ -76,6 +76,20 @@ export class SelectionCard {
       ? `<button class="btn blue upgrade" data-act="upgrade" ${canAfford(owner, next.cost) ? '' : 'disabled'}>⬆️ Niveau ${next.level} <span class="costs">${costHtml(next.cost, owner)}</span></button>`
       : '';
 
+    let training = '';
+    if (done && (b.type === 'townHall' || b.type === 'barracks')) {
+      const types: TrainingType[] = b.type === 'townHall' ? ['villager'] : ['spearman', 'archer', 'knight'];
+      training = types.map(t => {
+        const d = t === 'villager' ? VILLAGER : UNITS[t];
+        const reason = populationOf(state, b.ownerId) + reservedOf(state, b.ownerId) >= capacityOf(state, b.ownerId) ? 'Capacité de population atteinte' : !canAfford(owner, d.cost) ? 'Ressources insuffisantes' : '';
+        return `<div><button class="btn green" data-train="${t}" ${reason ? 'disabled' : ''}>Former ${t === 'villager' ? 'un villageois' : d.name.toLowerCase()}</button> ${costHtml(d.cost, owner)} ${reason ? `<small>${reason}</small>` : ''}</div>`;
+      }).join('');
+      training += (b.trainingQueue ?? []).map((item, i) => {
+        const d = item.type === 'villager' ? VILLAGER : UNITS[item.type];
+        return `<div>${d.name} · ${Math.round((1 - item.remainingMs / d.trainTimeMs) * 100)} % · ${Math.ceil(item.remainingMs / 1000)} s <button data-cancel="${i}">Annuler</button></div>`;
+      }).join('') || '<small>File vide</small>';
+      if (b.type === 'barracks') training += `<div><button data-rally>Point de ralliement${b.rallyPoint ? ` (${b.rallyPoint.tx}, ${b.rallyPoint.ty})` : ''}</button></div>`;
+    }
     setHtml(this.el, `
       <button class="close" aria-label="Fermer">✕</button>
       <div class="sel-head">
@@ -84,6 +98,7 @@ export class SelectionCard {
         <span class="owner" style="--c:${hexColor(owner.color)}">${owner.name}</span></div>
       </div>
       ${lines.join('')}
+      ${training}
       <div class="sel-btns">${armyBtn}${warBtn}${upgradeBtn}</div>`);
   }
 }

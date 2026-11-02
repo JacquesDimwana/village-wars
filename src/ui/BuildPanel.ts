@@ -6,7 +6,7 @@ import { BUILDING_UI, RESOURCE_UI, costHtml, gi } from './icons';
 import { Sheet, setHtml } from './Sheet';
 
 const CATEGORIES: { id: string; label: string; types: BuildingType[] }[] = [
-  { id: 'eco', label: `${gi('wood')} Économie`, types: ['house', 'lumberCamp', 'quarry', 'mine', 'smelter'] },
+  { id: 'eco', label: `${gi('wood')} Économie`, types: ['house', 'lumberCamp', 'minerCamp', 'mill', 'farm'] },
   { id: 'army', label: `${gi('army')} Armée`, types: ['armory', 'barracks', 'armyCamp'] },
   { id: 'defense', label: `${gi('tower')} Défense`, types: ['tower'] },
 ];

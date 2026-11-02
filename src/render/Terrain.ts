@@ -14,7 +14,7 @@ export const TILE_HEIGHT: Record<TileType, number> = {
   grass: 0,
   forest: 0,
   rock: 0.12,
-  ore: 0.12,
+  iron: 0.12,
 };
 
 export const TILE_COLOR: Record<TileType, number> = {
@@ -23,7 +23,7 @@ export const TILE_COLOR: Record<TileType, number> = {
   grass: 0x87966c,
   forest: 0x536d4d,
   rock: 0xa39f91,
-  ore: 0x75675d,
+  iron: 0x75675d,
 };
 
 const ORE_TINT = new THREE.Color(0.72, 0.62, 0.56);
@@ -204,7 +204,7 @@ export class Terrain {
           trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox * 0.35, h, ty + 0.5 + oz * 0.35, r * Math.PI * 2, 0.95 + r2 * 0.1));
         } else if (type === 'rock' && r < 0.45) {
           rocks[Math.floor(r2 * rocks.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r2 * Math.PI * 2, 0.7 + r * 0.6));
-        } else if (type === 'ore') {
+        } else if (type === 'iron') {
           ores[Math.floor(r2 * ores.length)].push(placement(tx + 0.5, h, ty + 0.5, r * Math.PI * 2, 1.1));
         }
       }

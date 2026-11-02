@@ -72,7 +72,7 @@ const MARKER_COLORS: Record<MarkerKind, THREE.Color> = {
 const LOADS: Record<ResourceType, { size: [number, number, number]; color: number }> = {
   wood: { size: [0.34, 0.09, 0.09], color: 0x7a4a22 },
   stone: { size: [0.15, 0.12, 0.15], color: 0xc4c4bc },
-  ore: { size: [0.14, 0.11, 0.13], color: 0x9a4a1c },
+  food: { size: [0.14, 0.11, 0.13], color: 0x9a4a1c },
   iron: { size: [0.16, 0.06, 0.1], color: 0x8c96a3 },
 };
 
@@ -266,10 +266,10 @@ export class CrowdRenderer {
         t.attackMs = u.lastAttackMs;
         t.attackSec = this.timeSec;
       }
-      const swing = this.batches[u.type].model.clips.attack;
+      const swing = this.batches[u.type === 'spearman' ? 'knight' : u.type].model.clips.attack;
       const swinging = !!target && !!swing && this.timeSec - t.attackSec < swing.duration;
       const clip: CrowdClip = swinging ? 'attack' : u.path.length > 0 ? 'walk' : 'idle';
-      this.addCharacter(this.batches[u.type], id, u.x, u.y, yaw, clip, tint, false, swinging ? t.attackSec : undefined);
+      this.addCharacter(this.batches[u.type === 'spearman' ? 'knight' : u.type], id, u.x, u.y, yaw, clip, tint, false, swinging ? t.attackSec : undefined);
       this.addRings(id, u.ownerId, u.x, u.y, selected);
       if (u.hp < u.maxHp) this.addBar(u.ownerId, u.x, u.y, u.hp / u.maxHp);
       this.drawn.push({ id, kind: 'unit', x: u.x + 0.5, z: u.y + 0.5 });
@@ -321,7 +321,7 @@ export class CrowdRenderer {
     return out;
   }
 
-  /** Top of the tile under a mover (rock / ore tiles are raised). */
+  /** Top of the tile under a mover (rock / iron tiles are raised). */
   private ground(x: number, y: number): number {
     return Math.max(0, TILE_HEIGHT[this.tileAt(Math.floor(x + 0.5), Math.floor(y + 0.5))]);
   }

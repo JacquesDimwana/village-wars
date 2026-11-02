@@ -11,17 +11,17 @@ export const gi = (name: string, cls = ''): string =>
 export const RESOURCE_UI: { key: ResourceType; icon: string; label: string; some: string }[] = [
   { key: 'wood', icon: gi('wood', 'c-wood'), label: 'Bois', some: 'du bois' },
   { key: 'stone', icon: gi('stone', 'c-stone'), label: 'Pierre', some: 'de la pierre' },
-  { key: 'ore', icon: gi('ore', 'c-ore'), label: 'Minerai', some: 'du minerai' },
+  { key: 'food', icon: gi('food', 'c-food'), label: 'Nourriture', some: 'de la nourriture' },
   { key: 'iron', icon: gi('iron', 'c-iron'), label: 'Fer', some: 'du fer' },
 ];
 
 export const BUILDING_UI: Record<BuildingType, { icon: string; desc: string }> = {
   townHall: { icon: gi('castle'), desc: 'Cœur du village. Détruit = défaite.' },
   house: { icon: gi('house'), desc: '+10 places pour de nouveaux habitants.' },
-  lumberCamp: { icon: gi('lumberCamp'), desc: 'Produit du bois. Près d’une forêt.' },
-  quarry: { icon: gi('quarry'), desc: 'Produit de la pierre. Près d’une roche.' },
-  mine: { icon: gi('mine'), desc: 'Produit du minerai. Près d’un filon.' },
-  smelter: { icon: gi('smelter'), desc: 'Fond 2 minerais en 1 fer.' },
+  lumberCamp: { icon: gi('lumberCamp'), desc: 'Dépôt de bois.' },
+  minerCamp: { icon: gi('mine'), desc: 'Dépôt de pierre et de fer.' },
+  mill: { icon: gi('quarry'), desc: 'Dépôt de nourriture.' },
+  farm: { icon: gi('wood'), desc: 'Nourriture renouvelable pour un villageois.' },
   armory: { icon: gi('armory'), desc: 'Forge épées et arcs.' },
   barracks: { icon: gi('barracks'), desc: 'Transforme habitant + arme en guerrier.' },
   tower: { icon: gi('tower'), desc: 'Tire sur les ennemis à portée.' },
@@ -34,6 +34,7 @@ export const WEAPON_UI: Record<WeaponType, { icon: string }> = {
 };
 
 export const UNIT_UI: Record<UnitType, { icon: string; role: string }> = {
+  spearman: { icon: gi('knight'), role: 'Mêlée, fort contre les chevaliers' },
   knight: { icon: gi('knight'), role: 'Mêlée, solide, fort contre les archers' },
   archer: { icon: gi('archer'), role: 'Distance, fragile, touche avant le contact' },
 };

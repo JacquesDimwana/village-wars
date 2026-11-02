@@ -1,7 +1,6 @@
 import { BUILDINGS, GAME, UNITS, VILLAGER } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import type { FogState, GameState } from '../core/types';
-import { assignWorkers, staffing } from './PopulationSystem';
 
 const CHUNK = GAME.chunkSize;
 
@@ -42,19 +41,14 @@ export function reveal(fog: FogState, cx: number, cy: number, radius: number): n
  * Warriors reveal their `vision` around them.
  */
 export class FogSystem {
-  update(state: GameState, dtMs: number): void {
+  update(state: GameState, _dtMs: number): void {
     const fog = state.fog;
-    const { growthPerSecond, maxRadius } = GAME.exploration;
-    const assignment = assignWorkers(state, PLAYER_ID);
 
     for (const b of Object.values(state.buildings)) {
       if (b.ownerId !== PLAYER_ID) continue;
       const def = BUILDINGS[b.type];
       const prev = fog.radius[b.id] ?? 0;
-      let next = Math.max(prev, def.vision);
-      if (def.produces && b.buildProgress >= 1) {
-        next = Math.min(Math.max(maxRadius, def.vision), next + growthPerSecond * staffing(b, assignment) * (dtMs / 1000));
-      }
+      const next = Math.max(prev, def.vision);
       fog.radius[b.id] = next;
       // Re-reveal only when the radius crossed a half tile (cheap at 10 ticks/s).
       if (prev === 0 || Math.floor(next * 2) > Math.floor(prev * 2)) {

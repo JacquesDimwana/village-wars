@@ -2,7 +2,8 @@ import { PLAYER_ID } from '../core/constants';
 import type { EventBus } from '../core/EventBus';
 import type { BuildingType, GameState } from '../core/types';
 import { incomeRates } from '../systems/EconomySystem';
-import { civilians, housingCap, warriors } from '../systems/PopulationSystem';
+import { listIdleVillagers } from '../systems/VillagerSystem';
+import { populationOf, capacityOf, reservedOf } from '../systems/TrainingSystem';
 import { ArmyPanel, type ArmyActions } from './ArmyPanel';
 import { BuildPanel } from './BuildPanel';
 import { DiplomacyPanel } from './DiplomacyPanel';
@@ -15,6 +16,7 @@ const REFRESH_MS = 200;
 
 export interface HudActions extends ArmyActions {
   build(type: BuildingType): void;
+  idle(): void;
   /** Next level for a building that has levels (town hall). */
   upgrade(buildingId: string): void;
   focus(x: number, y: number): void;
@@ -70,6 +72,7 @@ export class Hud {
           </div>`).join('')}
       </div>
       <div class="actions-left">
+        <button class="round blue" data-act="idle" title="Villageois inactif"><span class="glyph">${gi('workers')}</span><span class="label">Inactif</span><span class="badge" data-k="idle">0</span></button>
         <button class="round red big" data-sheet="army"><span class="glyph">${gi('army')}</span><span class="label">Armée</span><span class="badge" data-k="weapons" title="Armes en stock">0</span></button>
         <button class="round blue" data-sheet="diplomacy"><span class="glyph">${gi('diplomacy')}</span><span class="label">Diplomatie</span></button>
       </div>
@@ -95,7 +98,7 @@ export class Hud {
       ),
     };
     for (const sheet of Object.values(this.sheets)) sheet.onClose = () => this.openSheet(null);
-    this.selection = new SelectionCard(this.root, () => this.openSheet('army'), (id) => actions.upgrade(id));
+    this.selection = new SelectionCard(this.root, () => this.openSheet('army'), (id) => actions.upgrade(id), actions);
 
     this.root.querySelectorAll<HTMLButtonElement>('button[data-sheet]').forEach((btn) => {
       btn.addEventListener('click', () => this.openSheet(btn.dataset.sheet as SheetName));
@@ -105,6 +108,7 @@ export class Hud {
       btn.addEventListener('click', () => actions.home());
     });
 
+    this.root.querySelector<HTMLButtonElement>('[data-act=idle]')!.onclick = () => actions.idle();
     bus.on('notify', ({ message }) => this.toast(message));
     bus.on('building:selected', ({ buildingId }) => {
       this.selection.select(buildingId);
@@ -149,17 +153,16 @@ export class Hud {
       this.set(`${r.key}-rate`, Math.abs(rate) >= 0.05 ? `${rate > 0 ? '+' : ''}${rate.toFixed(1)}/s` : '');
     }
 
-    const workers = civilians(state, PLAYER_ID);
-    const army = warriors(state, PLAYER_ID).length;
-    const cap = Math.max(1, housingCap(state, PLAYER_ID));
+    const workers = Object.values(state.villagers).filter(x => x.ownerId === PLAYER_ID).length;
+    const army = populationOf(state, PLAYER_ID) - workers;
+    const cap = Math.max(1, capacityOf(state, PLAYER_ID));
+    this.set('idle', String(listIdleVillagers(state, PLAYER_ID).length));
     this.set('workers', String(workers));
     this.set('warriors', String(army));
-    this.set('housing', `${workers + army}/${cap}`);
+    this.set('housing', `${workers + army}/${cap} (+${reservedOf(state, PLAYER_ID)})`);
     this.root.style.setProperty('--workers', `${(workers / cap) * 100}%`);
     this.root.style.setProperty('--warriors', `${(army / cap) * 100}%`);
-    const weapons = v.weapons.sword + v.weapons.bow;
-    this.set('weapons', String(weapons));
-    this.values.get('weapons')!.hidden = weapons === 0;
+
 
     for (const sheet of Object.values(this.sheets)) if (sheet.isOpen) sheet.refresh(state);
     this.selection.refresh(state);

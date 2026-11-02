@@ -1,33 +1,19 @@
 {
   "tileAmounts": {
     "forest": 150,
-    "rock": 200,
-    "ore": 120
+    "rock": 250,
+    "iron": 200,
+    "berry": 150,
+    "animal": 120
   },
-  "smelter": {
-    "orePerIron": 2,
-    "intervalMs": 5000
+  "gatherRates": {
+    "forest": 0.7,
+    "rock": 0.6,
+    "iron": 0.6,
+    "berry": 0.7,
+    "animal": 0.8,
+    "farm": 0.6
   },
-  "population": {
-    "baseGrowthPerSecond": 0.05,
-    "growthPerHouse": 0.022,
-    "maxGrowthPerSecond": 0.2
-  },
-  "weapons": {
-    "sword": {
-      "name": "Épée",
-      "cost": {
-        "wood": 10,
-        "iron": 10
-      },
-      "forgeTimeMs": 6000
-    },
-    "bow": {
-      "name": "Arc",
-      "cost": {
-        "wood": 20
-      },
-      "forgeTimeMs": 4000
-    }
-  }
+  "animalHits": 3,
+  "animalHitIntervalMs": 1000
 }

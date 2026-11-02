@@ -7,10 +7,10 @@
   "clearRadiusAroundTownHall": 2,
   "buildRadius": 8,
   "startingResources": {
-    "wood": 200,
+    "food": 200,
+    "wood": 250,
     "stone": 100,
-    "ore": 0,
-    "iron": 0
+    "iron": 50
   },
   "camera": {
     "minDistance": 10,
@@ -27,19 +27,11 @@
   "minimap": {
     "halfSize": 120
   },
-  "startingInhabitants": 3,
-  "startingWeapons": {
-    "sword": 0,
-    "bow": 0
-  },
   "pathfinding": {
     "maxNodes": 4000,
     "separation": 0.55
   },
   "startingWorkers": 3,
-  "villagers": {
-    "maxVisible": 14
-  },
   "army": {
     "departIntervalMs": 350
   },
@@ -52,5 +44,10 @@
     "defendRadius": 14,
     "alarmMs": 6000,
     "repathMs": 600
+  },
+  "population": {
+    "base": 5,
+    "perHouse": 10,
+    "max": 100
   }
 }

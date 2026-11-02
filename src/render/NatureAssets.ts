@@ -17,7 +17,7 @@ export function natureMaterial(parts: MeshPart[][]): THREE.MeshStandardMaterial 
     const slot = slots[mat.name];
     if (slot && mat.map) ctx.drawImage(mat.map.image as CanvasImageSource, slot[0] * 512, slot[1] * 512, 512, 512);
   }
-  // Solid swatches for the low-poly canopy and trunk, plus ore veins.
+  // Solid swatches for the low-poly canopy and trunk, plus iron veins.
   for (const [x, color] of [[1008, '#426c38'], [1012, '#315b3a'], [1016, '#795639']] as const) {
     ctx.fillStyle = color;
     ctx.fillRect(x, 1020, 4, 4);

@@ -7,7 +7,7 @@ import { campDisplay, drawnUnitIds, isArmyCamp, recallArmy, sendArmy, soldiersIn
 import { isEnemy, orderAttack } from '../systems/CombatSystem';
 import { TILE_RESOURCE, isResourceTile, orderHarvest } from '../systems/GatherSystem';
 import type { MovementSystem } from '../systems/MovementSystem';
-import { orderAssign, orderGoto } from '../systems/VillagerSystem';
+import { orderGoto } from '../systems/VillagerSystem';
 import { RESOURCE_UI, gi } from '../ui/icons';
 import type { Hud } from '../ui/Hud';
 import type { SelectionCard } from '../ui/SelectionCard';
@@ -103,6 +103,8 @@ export class UnitControl {
     });
   }
 
+  selectVillager(id: string): void { this.setSelection([id]); }
+
   clear(): void {
     this.selectedIds.clear();
     this.refreshBar(true);
@@ -156,6 +158,7 @@ export class UnitControl {
       if (building && isEnemy(state, PLAYER_ID, building.ownerId)) return this.attack(state, unitIds, building.id);
     }
 
+    if (building?.type === 'farm' && building.ownerId === PLAYER_ID && orderHarvest(state, this.d.movement, villagers, building.tx, building.ty)) return true;
     if (building) {
       const def = BUILDINGS[building.type];
       if (building.ownerId !== PLAYER_ID || !def.workerSlots || building.buildProgress < 1) {
@@ -164,11 +167,6 @@ export class UnitControl {
           return false;
         }
         return this.orderGround(ndc, state, units, villagers);
-      }
-      if (villagers.length > 0) {
-        const n = orderAssign(state, villagers, building.id);
-        this.notify(n > 0 ? `Affecté à ${def.name}` : `${def.name} : aucun poste disponible`);
-        if (n > 0) this.onMarker?.([{ tx: building.tx + Math.floor(def.size / 2), ty: building.ty + Math.floor(def.size / 2) }], 'assign');
       }
       if (unitIds.length > 0) {
         const spot = { tx: building.tx + Math.floor(def.size / 2), ty: building.ty + def.size };
@@ -204,9 +202,9 @@ export class UnitControl {
       this.notify('Destination inaccessible');
       return true;
     }
-    if (isResourceTile(terrain)) {
+    if (isResourceTile(terrain) || Object.values(state.foodSources).some(s => s.tx === tx && s.ty === ty && s.remaining > 0)) {
       if (villagers.length > 0 && orderHarvest(state, mv, villagers, tx, ty)) {
-        const some = RESOURCE_UI.find((r) => r.key === TILE_RESOURCE[terrain])?.some ?? '';
+        const some = RESOURCE_UI.find((r) => r.key === (isResourceTile(terrain) ? TILE_RESOURCE[terrain] : 'food'))?.some ?? '';
         this.notify(`Récolte ${some}`);
         this.onMarker?.([{ tx, ty }], 'harvest');
       }
@@ -417,7 +415,6 @@ export class UnitControl {
     const detail: string[] = [];
     if (villagers.length === 1 && units.length === 0) {
       detail.push(this.villagerState(state, villagers[0]));
-      if (!villagers[0].enlistable) detail.push('Ouvrier — ne peut pas être enrôlé');
     }
     this.bar.render({
       knights: units.filter((u) => u.type === 'knight').length,
@@ -437,7 +434,7 @@ export class UnitControl {
     const job = state.buildings[v.pinnedJobId ?? v.jobId ?? ''];
     if (job && v.task !== 'goto' && v.task !== 'wander') return `Travaille à : ${BUILDINGS[job.type].name}`;
     if (v.task === 'goto') return 'Se déplace';
-    return 'Se promène';
+    return 'Inactif';
   }
 
   // ---------- camp badges ----------

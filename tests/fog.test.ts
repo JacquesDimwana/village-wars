@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addBuilding, createGameState, townHallOf } from '../src/core/GameState';
 import { PLAYER_ID } from '../src/core/constants';
-import { BUILDINGS, GAME } from '../src/core/config';
+import { BUILDINGS } from '../src/core/config';
 import { FogSystem, isExplored, reveal } from '../src/systems/FogSystem';
 import { WorldGen } from '../src/world/WorldGen';
 
@@ -36,26 +36,6 @@ describe('Exploration', () => {
     const vision = BUILDINGS.townHall.vision;
     expect(isExplored(state.fog, Math.floor(cx + vision - 1), Math.floor(cy))).toBe(true);
     expect(isExplored(state.fog, Math.floor(cx + vision + 3), Math.floor(cy))).toBe(false);
-  });
-
-  it('staffed producers explore further over time, up to maxRadius', () => {
-    const { state, hall } = setup();
-    const fog = new FogSystem();
-    // Starting inhabitants all work at the town hall (its only job).
-    for (let i = 0; i < 10; i++) fog.update(state, 1000);
-    const vision = BUILDINGS.townHall.vision;
-    expect(state.fog.radius[hall.id]).toBeCloseTo(vision + GAME.exploration.growthPerSecond * 10 * (3 / 3));
-    for (let i = 0; i < 1000; i++) fog.update(state, 1000);
-    expect(state.fog.radius[hall.id]).toBe(GAME.exploration.maxRadius);
-  });
-
-  it('exploration grows with the share of filled worker slots', () => {
-    const { state } = setup();
-    state.villages[PLAYER_ID].inhabitants = 1;
-    const camp = addBuilding(state, 'lumberCamp', PLAYER_ID, 100, 100, true);
-    new FogSystem().update(state, 4000);
-    const def = BUILDINGS.lumberCamp;
-    expect(state.fog.radius[camp.id]).toBeCloseTo(def.vision + GAME.exploration.growthPerSecond * 4 * (1 / def.workerSlots!));
   });
 
   it('non-producers and unfinished buildings only reveal their vision', () => {

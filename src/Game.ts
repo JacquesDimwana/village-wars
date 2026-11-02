@@ -1,9 +1,10 @@
+import { FoodSources } from './render/FoodSources';
 import * as THREE from 'three';
-import { BUILDINGS, GAME, UNITS, WEAPONS } from './core/config';
+import { BUILDINGS, GAME } from './core/config';
 import { PLAYER_ID } from './core/constants';
 import { bus } from './core/EventBus';
-import { addBuilding, createGameState, townHallOf } from './core/GameState';
-import type { Building, BuildingType, GameState, UnitType, WeaponType } from './core/types';
+import { addBuilding, addUnit, createGameState, townHallOf } from './core/GameState';
+import type { Building, BuildingType, GameState } from './core/types';
 import { RtsCamera } from './input/RtsCamera';
 import { UnitControl } from './input/UnitControl';
 import { Assets } from './render/Assets';
@@ -11,16 +12,15 @@ import { CrowdRenderer } from './render/CrowdRenderer';
 import { EntityRenderer } from './render/EntityRenderer';
 import { PlacementGhost } from './render/PlacementGhost';
 import { Terrain, type ViewBounds } from './render/Terrain';
-import { ArmorySystem, queueWeapon } from './systems/ArmorySystem';
+import { TrainingSystem, queueTraining, cancelTraining } from './systems/TrainingSystem';
 import { ConstructionSystem, canPlace, placeBuilding, upgradeBuilding } from './systems/ConstructionSystem';
-import { EconomySystem } from './systems/EconomySystem';
 import { FogSystem } from './systems/FogSystem';
+import { AISystem } from './systems/AISystem';
 import { ArmySystem } from './systems/ArmySystem';
 import { CombatSystem } from './systems/CombatSystem';
 import { GatherSystem } from './systems/GatherSystem';
 import { MovementSystem } from './systems/MovementSystem';
-import { PopulationSystem, convertToWarrior, demobilize } from './systems/PopulationSystem';
-import { VillagerSystem } from './systems/VillagerSystem';
+import { VillagerSystem, listIdleVillagers } from './systems/VillagerSystem';
 import { Hud, type HudActions } from './ui/Hud';
 import { Minimap } from './ui/Minimap';
 import { PlacementBar } from './ui/PlacementBar';
@@ -38,6 +38,7 @@ export class Game {
   readonly world = new WorldGen(GAME.seed);
   readonly state: GameState = createGameState(this.world);
   readonly renderer: THREE.WebGLRenderer;
+  private foodSources = new FoodSources();
   readonly scene = new THREE.Scene();
   readonly cam: RtsCamera;
   readonly entities: EntityRenderer;
@@ -57,11 +58,12 @@ export class Game {
   private accumulator = 0;
   private ndc = new THREE.Vector2();
 
-  private population = new PopulationSystem(bus);
-  private economy = new EconomySystem(bus);
-  private armory = new ArmorySystem(bus);
   private fog = new FogSystem();
   readonly movement = new MovementSystem((tx, ty) => this.world.getTile(tx, ty));
+  private ai = new AISystem(this.world, this.movement);
+  private rallyBuildingId: string | null = null;
+  private idleIndex = 0;
+  private training = new TrainingSystem(this.movement);
   private villagers = new VillagerSystem(this.movement);
   private gather = new GatherSystem(this.movement, bus);
   private army = new ArmySystem(this.movement);
@@ -110,7 +112,7 @@ export class Game {
       canPlace(this.state, this.world, type, tx, ty, PLAYER_ID),
     );
     this.placementBar = new PlacementBar(() => this.confirmPlacement(), () => this.stopPlacement());
-    this.scene.add(this.terrain.root, this.entities.root, this.crowd.root, this.placement.root);
+    this.scene.add(this.foodSources.root, this.terrain.root, this.entities.root, this.crowd.root, this.placement.root);
 
     const hall = townHallOf(this.state, PLAYER_ID);
     const half = BUILDINGS.townHall.size / 2;
@@ -162,6 +164,7 @@ export class Game {
     this.sun.position.set(t.x + 40, 65, t.z + 30);
     this.sun.target.position.copy(t);
     this.followZoom();
+    this.foodSources.sync(this.state);
     this.entities.sync(this.state);
     this.crowd.sync(this.state, dt, this.selectedIds, this.cam.distance);
     this.updatePlacement();
@@ -175,9 +178,7 @@ export class Game {
   private tick(dt: number): void {
     if (this.state.status !== 'playing') return;
     this.state.timeMs += dt;
-    this.population.update(this.state, dt);
-    this.economy.update(this.state, dt);
-    this.armory.update(this.state, dt);
+    this.training.update(this.state, dt);
     this.construction.update(this.state, dt);
     this.villagers.update(this.state, dt);
     this.gather.update(this.state, dt);
@@ -185,7 +186,7 @@ export class Game {
     this.movement.update(this.state, dt);
     this.combat.update(this.state, dt);
     this.fog.update(this.state, dt);
-    // TODO(agent D) ai
+    this.ai.update(this.state, dt);
     // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
   }
 
@@ -236,40 +237,25 @@ export class Game {
       ['armory', tx + 1, ty + 5, true],
       ['lumberCamp', tx - 3, ty - 3, true],
       ['tower', tx + 4, ty + 4, true],
-      ['smelter', tx + 6, ty + 3, false],
     ];
     for (const [type, x, y, done] of place) {
       const b = addBuilding(this.state, type, PLAYER_ID, x, y, done);
       if (!done) b.buildProgress = 0.4;
     }
-    const v = this.state.villages[PLAYER_ID];
-    v.inhabitants = 12;
-    v.weapons = { sword: 4, bow: 3 };
-    for (let i = 0; i < 4; i++) convertToWarrior(this.state, PLAYER_ID, 'knight', bus);
-    for (let i = 0; i < 3; i++) convertToWarrior(this.state, PLAYER_ID, 'archer', bus);
+    for (let i = 0; i < 4; i++) addUnit(this.state, 'knight', PLAYER_ID, tx + 5 + i, ty + 3);
+    for (let i = 0; i < 3; i++) addUnit(this.state, 'archer', PLAYER_ID, tx + 5 + i, ty + 4);
   }
 
   /** What the player can do from the HUD. Rules stay in the systems. */
   private hudActions(home: { x: number; y: number }): HudActions {
     const notify = (message: string): void => bus.emit('notify', { message });
     return {
-      forge: (weapon: WeaponType) => {
-        if (queueWeapon(this.state, PLAYER_ID, weapon)) notify(`${WEAPONS[weapon].name} : en cours de forge`);
-        else notify('Impossible de forger : armurerie ou ressources manquantes');
+      train: (buildingId, type) => {
+        notify(queueTraining(this.state, buildingId, type) ? 'Formation ajoutée à la file' : 'Formation impossible : ressources ou places insuffisantes');
       },
-      train: (unit: UnitType) => {
-        const messages = {
-          ok: `${UNITS[unit].name.replace(/ \(.*\)/, '')} formé !`,
-          'no-barracks': 'Construis d’abord une caserne',
-          'no-civilian': 'Aucun habitant disponible',
-          'no-weapon': `Pas de ${WEAPONS[UNITS[unit].weapon].name.toLowerCase()} en stock`,
-        };
-        notify(messages[convertToWarrior(this.state, PLAYER_ID, unit, bus)]);
-      },
-      demobilize: (unit: UnitType) => {
-        const last = Object.values(this.state.units).filter((u) => u.ownerId === PLAYER_ID && u.type === unit).pop();
-        if (last && demobilize(this.state, last.id, bus)) notify('Le guerrier retourne au travail');
-      },
+      rally: (buildingId) => { this.rallyBuildingId = buildingId; this.hud.openSheet(null); notify('Touchez le sol pour fixer le ralliement'); },
+      idle: () => { const idle = listIdleVillagers(this.state, PLAYER_ID); if (!idle.length) return; const v = idle[this.idleIndex++ % idle.length]; this.unitControl.selectVillager(v.id); this.cam.lookAt(v.x, v.y); },
+      cancel: (buildingId, index) => { cancelTraining(this.state, buildingId, index); },
       build: (type) => this.startPlacement(type),
       upgrade: (buildingId) => {
         const res = upgradeBuilding(this.state, buildingId, bus);
@@ -320,6 +306,11 @@ export class Game {
 
   private handleTap(ndc: THREE.Vector2, shift = false, mouse = false): void {
     if (this.placement.active) return this.placement.tapAt(ndc);
+    if (this.rallyBuildingId) {
+      const p = this.cam.groundPoint(ndc);
+      if (p) { const x = Math.floor(p.x), y = Math.floor(p.z); const b = this.state.buildings[this.rallyBuildingId]; if (b && this.movement.walkable(this.state, x, y)) { b.rallyPoint = { tx: x, ty: y }; this.rallyBuildingId = null; bus.emit('notify', { message: 'Point de ralliement défini' }); } else bus.emit('notify', { message: 'Point de ralliement inaccessible' }); }
+      return;
+    }
     const b = this.buildingAt(ndc);
     if (this.unitControl.handleTap(ndc, b, mouse, shift)) return;
     if (b) {

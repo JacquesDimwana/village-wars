@@ -12,8 +12,6 @@ export interface TileSource {
 
 export type PlaceCheck = { ok: true } | { ok: false; reason: string };
 
-const TILE_LABEL: Partial<Record<TileType, string>> = { forest: 'une forêt', rock: 'une roche', ore: 'du minerai' };
-
 /** Tiles between two footprints (0 = touching or overlapping), Chebyshev distance. */
 function gap(ax: number, ay: number, as: number, bx: number, by: number, bs: number): number {
   const dx = Math.max(0, bx - (ax + as - 1), ax - (bx + bs - 1));
@@ -23,16 +21,6 @@ function gap(ax: number, ay: number, as: number, bx: number, by: number, bs: num
 
 const overlaps = (ax: number, ay: number, as: number, bx: number, by: number, bs: number): boolean =>
   ax < bx + bs && bx < ax + as && ay < by + bs && by < ay + as;
-
-/** True if a tile of `type` lies within `radius` tiles of the footprint. */
-function hasNearbyTile(world: TileSource, tx: number, ty: number, size: number, type: TileType, radius: number): boolean {
-  for (let y = ty - radius; y < ty + size + radius; y++) {
-    for (let x = tx - radius; x < tx + size + radius; x++) {
-      if (world.getTile(x, y) === type) return true;
-    }
-  }
-  return false;
-}
 
 /**
  * Whether `villageId` may start a `type` building with its top-left tile at (tx, ty).
@@ -55,7 +43,8 @@ export function canPlace(
   const size = def.size;
   for (let y = ty; y < ty + size; y++) {
     for (let x = tx; x < tx + size; x++) {
-      if (!isBuildable(world.getTile(x, y))) return { ok: false, reason: 'Terrain non constructible' };
+      if (Object.values(state.foodSources).some(source => source.tx === x && source.ty === y && source.remaining > 0)) return { ok: false, reason: 'Emplacement occupé' };
+      if (!isBuildable(world.getTile(x, y)) && !(state.depletion[`${x},${y}`] !== undefined && state.depletion[`${x},${y}`] <= 0)) return { ok: false, reason: 'Terrain non constructible' };
     }
   }
 
@@ -66,11 +55,6 @@ export function canPlace(
     if (b.ownerId === villageId && gap(tx, ty, size, b.tx, b.ty, bs) <= GAME.buildRadius) nearVillage = true;
   }
   if (!nearVillage) return { ok: false, reason: 'Trop loin du village' };
-
-  const req = def.requiresNearbyTile;
-  if (req && !hasNearbyTile(world, tx, ty, size, req.type, req.radius)) {
-    return { ok: false, reason: `Il faut ${TILE_LABEL[req.type] ?? req.type} à ${req.radius} cases max` };
-  }
 
   if (!canAfford(village, def.cost)) return { ok: false, reason: 'Pas assez de ressources' };
   return { ok: true };

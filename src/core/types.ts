@@ -1,22 +1,22 @@
-export type ResourceType = 'wood' | 'stone' | 'ore' | 'iron';
+export type ResourceType = 'food' | 'wood' | 'stone' | 'iron';
 export type Resources = Record<ResourceType, number>;
 export type Cost = Partial<Resources>;
 
-export type TileType = 'water' | 'sand' | 'grass' | 'forest' | 'rock' | 'ore';
+export type TileType = 'water' | 'sand' | 'grass' | 'forest' | 'rock' | 'iron';
 
 export type BuildingType =
   | 'townHall'
   | 'house'
   | 'lumberCamp'
-  | 'quarry'
-  | 'mine'
-  | 'smelter'
+  | 'minerCamp'
+  | 'mill'
+  | 'farm'
   | 'barracks'
   | 'armory'
   | 'tower'
   | 'armyCamp';
 
-export type UnitType = 'knight' | 'archer';
+export type UnitType = 'knight' | 'archer' | 'spearman';
 export type WeaponType = 'sword' | 'bow';
 
 export type Personality = 'aggressive' | 'economic' | 'diplomat';
@@ -38,6 +38,8 @@ export interface Building {
   level: number;
   /** 0..1 — production and effects only apply at 1. */
   buildProgress: number;
+  trainingQueue?: { type: UnitType | 'villager'; remainingMs: number }[];
+  rallyPoint?: TilePos | null;
   /** Defense tower: what it shoots at and when it may shoot again (state.timeMs). */
   targetId?: string | null;
   nextAttackMs?: number;
@@ -91,7 +93,7 @@ export interface Villager extends Mover {
   /** Player pinned this villager to a building: it gets a slot there first. */
   pinnedJobId: string | null;
   /** Player order: gather this tile (the villager leaves its job). */
-  harvest: TilePos | null;
+  harvest: (TilePos & { sourceType?: 'berry' | 'animal' | 'farm'; sourceId?: string }) | null;
   task: VillagerTask;
   /** Tile the current trip goes to (resource tile, building, wander spot). */
   target: TilePos | null;
@@ -113,17 +115,6 @@ export interface Village {
   personality?: Personality;
   color: number;
   resources: Resources;
-  /** Fractional accumulators so slow production rates are not lost to rounding. */
-  production: Resources;
-  smelterTimerMs: number;
-  /** Civilians (fractional while growing). Only floor(inhabitants) are counted as workers. */
-  inhabitants: number;
-  /** Starting workers still alive (part of inhabitants, never enlistable). */
-  founders: number;
-  /** Forged weapons in stock, consumed when converting an inhabitant into a warrior. */
-  weapons: Record<WeaponType, number>;
-  /** Armory queue, front item progresses first. */
-  forgeQueue: { weapon: WeaponType; remainingMs: number }[];
   alive: boolean;
   /** Ids of allied villages. */
   allies: string[];
@@ -141,6 +132,7 @@ export interface GameState {
   units: Record<string, Unit>;
   /** Visible civilians (one per whole inhabitant). Kept in sync by VillagerSystem. */
   villagers: Record<string, Villager>;
+  foodSources: Record<string, { id: string; type: 'berry' | 'animal'; tx: number; ty: number; remaining: number; hits: number }>;
   nextId: number;
   /** Remaining resource amount for tiles that have been harvested. Key: "tx,ty". */
   depletion: Record<string, number>;

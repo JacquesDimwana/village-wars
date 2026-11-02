@@ -34,15 +34,15 @@ function layout(type: KitType, variant: number): Placement[] {
       ['Roof_RoundTiles_4x4', 0, 2.6, 0, 0, 0.45, 0.3, 0.45],
       ['Prop_Crate', 0.8, 0, 1.1], ['Prop_WoodenFence_Single', -0.7, 0, 1.1],
     ];
-    case 'quarry': return [...fence, ['Prop_Support', 0, 0, -0.7],
+    case 'minerCamp': return [...fence, ['Prop_Support', 0, 0, -0.7],
       ['Prop_Brick1', -0.6, 0.25, 0], ['Prop_Brick1', 0, 0.25, 0], ['Prop_Brick1', 0.6, 0.25, 0],
       ['Prop_Crate', 0.7, 0, -0.9]];
-    case 'mine': return [
+    case 'mill': return [
       ['Wall_UnevenBrick_Straight', 0, 0, -0.8], ['Wall_Plaster_Door_Flat', 0, 0, 0.9],
       ['Wall_UnevenBrick_Straight', -1, 0, 0, -P / 2], ['Wall_UnevenBrick_Straight', 1, 0, 0, P / 2],
       ['Roof_RoundTiles_4x4', 0, 3, 0, 0, 0.43, 0.3, 0.43], ['Prop_Crate', 1.2, 0, 1.1],
     ];
-    case 'smelter': return [...house(true).filter(([name]) => name !== 'Door_1_Flat'), ['Prop_Chimney', 1.15, 0, -0.5]];
+    case 'farm': return [['Floor_WoodDark', 0, 0, 0], ...fence, ['Prop_WoodenFence_Single', -1, 0, -1.8], ['Prop_WoodenFence_Single', 1, 0, -1.8]];
     case 'armory': return [...house(true), ['Prop_Crate', 1.15, 0, 1], ['Prop_WoodenFence_Single', -0.5, 0, 1.6]];
     case 'barracks': return [...house(true), ...fence, ['Prop_Crate', 1.4, 0, 0.8]];
     case 'armyCamp': return [
@@ -119,7 +119,7 @@ export class BuildingKit {
         pieces.push(source);
       });
     }
-    if (type === 'mine' || type === 'lumberCamp') {
+    if (type === 'minerCamp' || type === 'lumberCamp') {
       const addDetail = (geometry: THREE.BufferGeometry, slot: number) => {
         const detail = geometry.toNonIndexed();
         geometry.dispose();
@@ -129,7 +129,7 @@ export class BuildingKit {
         }
         pieces.push(detail);
       };
-      if (type === 'mine') {
+      if (type === 'minerCamp') {
         const opening = new THREE.PlaneGeometry(0.9, 1.8);
         opening.translate(0, 0.9, 0.85);
         addDetail(opening, 6);

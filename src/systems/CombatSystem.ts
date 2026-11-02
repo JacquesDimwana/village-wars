@@ -1,3 +1,4 @@
+import { refundTraining } from './TrainingSystem';
 import { BUILDINGS, COUNTER_MULTIPLIER, GAME, UNITS } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import type { EventBus } from '../core/EventBus';
@@ -235,6 +236,7 @@ export class CombatSystem {
   }
 
   private destroyBuilding(state: GameState, b: Building): void {
+    refundTraining(state, b.id);
     delete state.buildings[b.id];
     this.bus.emit('building:destroyed', { buildingId: b.id });
     if (b.type !== 'townHall') return;

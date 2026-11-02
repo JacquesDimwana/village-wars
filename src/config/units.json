@@ -2,23 +2,28 @@
   "counterMultiplier": 1.5,
   "archer": {
     "name": "Archer",
-    "hp": 70,
-    "attack": 8,
+    "hp": 65,
+    "attack": 9,
     "range": 5,
-    "attackCooldownMs": 1200,
+    "attackCooldownMs": 1800,
     "speed": 2.0,
     "aggroRange": 6,
     "vision": 7,
     "military": true,
-    "weapon": "bow"
+    "weapon": "bow",
+    "cost": {
+      "food": 40,
+      "wood": 50
+    },
+    "trainTimeMs": 22000
   },
   "knight": {
-    "name": "Chevalier (épée)",
-    "hp": 200,
-    "attack": 16,
+    "name": "Chevalier (\u00e9p\u00e9e)",
+    "hp": 150,
+    "attack": 14,
     "range": 1,
-    "attackCooldownMs": 1100,
-    "speed": 3.0,
+    "attackCooldownMs": 1800,
+    "speed": 2.3,
     "aggroRange": 6,
     "vision": 6,
     "military": true,
@@ -26,11 +31,16 @@
       "archer"
     ],
     "buildingDamageMultiplier": 1.5,
-    "weapon": "sword"
+    "weapon": "sword",
+    "cost": {
+      "food": 60,
+      "iron": 40
+    },
+    "trainTimeMs": 26000
   },
   "villager": {
     "name": "Villageois",
-    "hp": 40,
+    "hp": 50,
     "speed": 1.8,
     "vision": 3,
     "carryCapacity": 10,
@@ -38,6 +48,29 @@
     "workMs": 3000,
     "searchRadius": 10,
     "wanderRadius": 5,
-    "wanderPauseMs": 2500
+    "wanderPauseMs": 2500,
+    "cost": {
+      "food": 50
+    },
+    "trainTimeMs": 20000
+  },
+  "spearman": {
+    "name": "Lancier",
+    "hp": 90,
+    "attack": 8,
+    "range": 1,
+    "attackCooldownMs": 1500,
+    "speed": 2,
+    "aggroRange": 6,
+    "vision": 6,
+    "military": true,
+    "strongAgainst": [
+      "knight"
+    ],
+    "cost": {
+      "food": 40,
+      "wood": 25
+    },
+    "trainTimeMs": 18000
   }
 }

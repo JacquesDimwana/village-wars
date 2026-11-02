@@ -55,7 +55,7 @@ describe('WorldGen', () => {
     const w = new WorldGen(GAME.seed);
     const seen = new Set<string>();
     for (let y = -150; y < 150; y += 2) for (let x = -150; x < 150; x += 2) seen.add(w.rawTile(x, y));
-    expect([...seen].sort()).toEqual(['forest', 'grass', 'ore', 'rock', 'sand', 'water']);
+    expect([...seen].sort()).toEqual(['forest', 'grass', 'iron', 'rock', 'sand', 'water']);
   });
 
   it('creates one town hall and the starting inhabitants per village', () => {
@@ -64,6 +64,6 @@ describe('WorldGen', () => {
     const halls = Object.values(state.buildings).filter((b) => b.type === 'townHall');
     expect(halls).toHaveLength(6);
     expect(Object.values(state.units)).toHaveLength(0);
-    for (const v of Object.values(state.villages)) expect(v.inhabitants).toBe(GAME.startingInhabitants);
+    for (const v of Object.values(state.villages)) expect(Object.values(state.villagers).filter(x => x.ownerId === v.id)).toHaveLength(3);
   });
 });

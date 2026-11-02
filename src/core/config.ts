@@ -3,7 +3,7 @@ import resourcesJson from '../config/resources.json';
 import buildingsJson from '../config/buildings.json';
 import unitsJson from '../config/units.json';
 import aiJson from '../config/ai.json';
-import type { BuildingType, Cost, Personality, ResourceType, TileType, UnitType, WeaponType } from './types';
+import type { BuildingType, Cost, Personality, ResourceType, UnitType, WeaponType } from './types';
 
 export interface BuildingDef {
   name: string;
@@ -14,7 +14,6 @@ export interface BuildingDef {
   vision: number;
   population?: number;
   produces?: Partial<Record<ResourceType, number>>;
-  requiresNearbyTile?: { type: TileType; radius: number };
   smelts?: boolean;
   /** Jobs offered. Production scales with filled slots / workerSlots. */
   workerSlots?: number;
@@ -31,7 +30,8 @@ export interface BuildingDef {
 export interface UnitDef {
   name: string;
   /** Weapon consumed (with 1 inhabitant) to create this unit. */
-  weapon: WeaponType;
+  cost: Cost;
+  trainTimeMs: number;
   hp: number;
   attack: number;
   range: number;
@@ -55,14 +55,7 @@ export interface PersonalityDef {
 }
 
 export const GAME = gameJson;
-export interface WeaponDef {
-  name: string;
-  cost: Cost;
-  forgeTimeMs: number;
-}
-
 export const RESOURCES = resourcesJson;
-export const WEAPONS = resourcesJson.weapons as Record<WeaponType, WeaponDef>;
 export const BUILDINGS = buildingsJson as unknown as Record<BuildingType, BuildingDef>;
 
 const { counterMultiplier, villager, ...unitDefs } = unitsJson;
@@ -73,6 +66,8 @@ export const UNITS = unitDefs as unknown as Record<UnitType, UnitDef>;
 
 export const AI = aiJson as unknown as {
   thinkIntervalMs: number;
+  workerTarget: number;
+  sourceCandidates: number;
   /** AI keeps at least this many civilians working before converting warriors. */
   minWorkers: number;
   housingThreshold: number;

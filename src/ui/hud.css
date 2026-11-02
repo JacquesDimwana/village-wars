@@ -844,7 +844,7 @@
 
 .c-wood { color: #d9934f; }
 .c-stone { color: #c9c9d4; }
-.c-ore { color: #f0b84a; }
+.c-iron { color: #f0b84a; }
 .c-iron { color: #a9c3dc; }
 .c-workers { color: #9be36c; }
 .c-warriors { color: #ff8a7a; }
@@ -1094,4 +1094,15 @@ body.sheet-open .minimap,
   .hud button {
     cursor: pointer;
   }
+}
+
+/* Training queues remain usable on short landscape screens. */
+.selection {
+  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 12px);
+  overflow-y: auto;
+}
+@media (max-width: 720px) {
+  .resources { gap: 8px; right: calc(var(--safe-right) + 6px); }
+  .res { min-width: 42px; padding: 3px 4px 3px 18px; }
+  .res-icon { width: 25px; height: 25px; left: -10px; }
 }

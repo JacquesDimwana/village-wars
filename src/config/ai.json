@@ -14,7 +14,7 @@
       "targetPreference": "weakest"
     },
     "economic": {
-      "name": "Économe",
+      "name": "\u00c9conome",
       "barracksPriority": 3,
       "attackThreshold": 2.0,
       "unitMix": {
@@ -43,5 +43,7 @@
     "aggressive",
     "economic"
   ],
-  "minWorkers": 6
+  "minWorkers": 6,
+  "workerTarget": 12,
+  "sourceCandidates": 12
 }

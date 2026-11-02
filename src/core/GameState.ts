@@ -1,6 +1,8 @@
-import { AI, BUILDINGS, GAME, UNITS } from './config';
+import { hash2 } from './rng';
+import { AI, BUILDINGS, GAME, UNITS, RESOURCES } from './config';
 import { PLAYER_ID } from './constants';
 import type { Building, BuildingType, GameState, Resources, Unit, UnitType, Village } from './types';
+import { spawnVillager } from '../systems/VillagerSystem';
 import type { WorldGen } from '../world/WorldGen';
 
 const AI_NAMES = ['Brumeval', 'Rocheclaire', 'Fortbois', 'Valdor', 'Ombrecombe', 'Hautelande'];
@@ -8,7 +10,7 @@ const AI_NAMES = ['Brumeval', 'Rocheclaire', 'Fortbois', 'Valdor', 'Ombrecombe',
 const AI_COLORS = [0xd94b3d, 0x4caf50, 0xf2c230, 0x9b59b6, 0x1abc9c];
 export const PLAYER_COLOR = 0x3498db;
 
-const emptyResources = (): Resources => ({ wood: 0, stone: 0, ore: 0, iron: 0 });
+const emptyResources = (): Resources => ({ food: 0, wood: 0, stone: 0, iron: 0 });
 
 export function nextId(state: GameState, prefix: string): string {
   state.nextId += 1;
@@ -73,6 +75,7 @@ export function createGameState(world: WorldGen): GameState {
     buildings: {},
     units: {},
     villagers: {},
+    foodSources: {},
     nextId: 0,
     depletion: {},
     fog: { explored: {}, radius: {}, version: 0 },
@@ -89,12 +92,6 @@ export function createGameState(world: WorldGen): GameState {
       personality: isPlayer ? undefined : AI.assignment[aiIndex % AI.assignment.length],
       color: isPlayer ? PLAYER_COLOR : AI_COLORS[aiIndex % AI_COLORS.length],
       resources: { ...emptyResources(), ...GAME.startingResources },
-      production: emptyResources(),
-      smelterTimerMs: 0,
-      inhabitants: GAME.startingInhabitants,
-      founders: Math.min(GAME.startingWorkers, GAME.startingInhabitants),
-      weapons: { ...GAME.startingWeapons },
-      forgeQueue: [],
       alive: true,
       allies: [],
       relations: {},
@@ -102,9 +99,32 @@ export function createGameState(world: WorldGen): GameState {
     state.villages[village.id] = village;
 
     const half = Math.floor(BUILDINGS.townHall.size / 2);
-    addBuilding(state, 'townHall', village.id, spawn.tx - half, spawn.ty - half, true);
+    const hall = addBuilding(state, 'townHall', village.id, spawn.tx - half, spawn.ty - half, true);
+    for (let n = 0; n < GAME.startingWorkers; n++) spawnVillager(state, village.id, hall.tx + n, hall.ty + BUILDINGS.townHall.size);
   });
 
+  const addSource = (type: 'berry' | 'animal', tx: number, ty: number): void => {
+    if (!['grass', 'sand'].includes(world.getTile(tx, ty)) || Object.values(state.foodSources).some(s => s.tx === tx && s.ty === ty)) return;
+    const id = nextId(state, 'food');
+    state.foodSources[id] = { id, type, tx, ty, remaining: RESOURCES.tileAmounts[type], hits: 0 };
+  };
+  for (const spawn of world.spawns) {
+    const offsets: [number, number][] = [];
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) === 2) offsets.push([dx, dy]);
+    }
+    for (let i = 0; i < offsets.length; i++) {
+      const [dx, dy] = offsets[i];
+      if (i < 6) addSource('berry', spawn.tx + dx, spawn.ty + dy);
+      else if (i < 12) addSource('animal', spawn.tx + dx, spawn.ty + dy);
+    }
+  }
+  for (let y = -GAME.map.halfSize + 5; y < GAME.map.halfSize - 5; y += 11) {
+    for (let x = -GAME.map.halfSize + 5; x < GAME.map.halfSize - 5; x += 11) {
+      const n = hash2(x, y, world.seed);
+      if (n < 0.12) addSource(n < 0.06 ? 'berry' : 'animal', x, y);
+    }
+  }
   return state;
 }
 

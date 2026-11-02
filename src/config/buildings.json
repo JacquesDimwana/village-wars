@@ -2,146 +2,57 @@
   "townHall": {
     "name": "Hôtel de ville",
     "size": 3,
-    "hp": 2000,
+    "hp": 2400,
     "cost": {},
     "buildTimeMs": 0,
     "population": 5,
-    "vision": 8,
-    "levels": [
-      {
-        "level": 1,
-        "cost": {}
-      },
-      {
-        "level": 2,
-        "cost": {
-          "wood": 300,
-          "stone": 200
-        },
-        "hpBonus": 1000,
-        "population": 5
-      },
-      {
-        "level": 3,
-        "cost": {
-          "wood": 500,
-          "stone": 400,
-          "iron": 100
-        },
-        "hpBonus": 1500,
-        "population": 5
-      }
-    ],
-    "workerSlots": 3,
-    "produces": {
-      "wood": 0.4,
-      "stone": 0.2
-    }
+    "vision": 8
   },
   "house": {
     "name": "Maison",
     "size": 2,
-    "hp": 300,
+    "hp": 500,
     "cost": {
       "wood": 50
     },
-    "buildTimeMs": 8000,
+    "buildTimeMs": 25000,
     "population": 10,
     "vision": 3
   },
   "lumberCamp": {
     "name": "Camp de bûcherons",
     "size": 2,
-    "hp": 400,
+    "hp": 600,
     "cost": {
       "wood": 75
     },
-    "buildTimeMs": 10000,
-    "vision": 4,
-    "produces": {
-      "wood": 1.2
-    },
-    "requiresNearbyTile": {
-      "type": "forest",
-      "radius": 4
-    },
-    "workerSlots": 3
-  },
-  "quarry": {
-    "name": "Carrière",
-    "size": 2,
-    "hp": 500,
-    "cost": {
-      "wood": 100
-    },
-    "buildTimeMs": 12000,
-    "vision": 4,
-    "produces": {
-      "stone": 0.8
-    },
-    "requiresNearbyTile": {
-      "type": "rock",
-      "radius": 4
-    },
-    "workerSlots": 3
-  },
-  "mine": {
-    "name": "Mine",
-    "size": 2,
-    "hp": 500,
-    "cost": {
-      "wood": 120,
-      "stone": 60
-    },
-    "buildTimeMs": 15000,
-    "vision": 4,
-    "produces": {
-      "ore": 0.6
-    },
-    "requiresNearbyTile": {
-      "type": "ore",
-      "radius": 4
-    },
-    "workerSlots": 3
-  },
-  "smelter": {
-    "name": "Fonderie",
-    "size": 2,
-    "hp": 600,
-    "cost": {
-      "wood": 100,
-      "stone": 150
-    },
-    "buildTimeMs": 15000,
-    "vision": 4,
-    "smelts": true,
-    "workerSlots": 2
+    "buildTimeMs": 30000,
+    "vision": 4
   },
   "barracks": {
     "name": "Caserne",
     "size": 3,
-    "hp": 900,
+    "hp": 1200,
     "cost": {
-      "wood": 150,
-      "stone": 100
+      "wood": 150
     },
-    "buildTimeMs": 18000,
+    "buildTimeMs": 45000,
     "vision": 5,
     "converts": [
-      "knight",
-      "archer"
+      "spearman",
+      "archer",
+      "knight"
     ]
   },
   "armory": {
     "name": "Armurerie",
-    "size": 2,
-    "hp": 600,
+    "size": 3,
+    "hp": 1000,
     "cost": {
-      "wood": 150,
-      "stone": 150,
-      "iron": 50
+      "wood": 125,
+      "stone": 50
     },
-    "buildTimeMs": 20000,
+    "buildTimeMs": 40000,
     "vision": 4,
     "workerSlots": 2,
     "forges": [
@@ -151,13 +62,13 @@
   },
   "tower": {
     "name": "Tour de défense",
-    "size": 1,
-    "hp": 700,
+    "size": 2,
+    "hp": 1400,
     "cost": {
-      "wood": 50,
+      "wood": 75,
       "stone": 125
     },
-    "buildTimeMs": 14000,
+    "buildTimeMs": 50000,
     "vision": 7,
     "attack": 14,
     "attackRange": 6,
@@ -166,13 +77,42 @@
   "armyCamp": {
     "name": "Camp d'armée",
     "size": 4,
-    "hp": 400,
+    "hp": 700,
     "cost": {
-      "wood": 80,
-      "stone": 40
+      "wood": 75
     },
-    "buildTimeMs": 12000,
+    "buildTimeMs": 25000,
     "vision": 4,
     "visibleSoldiers": 8
+  },
+  "minerCamp": {
+    "name": "Camp de mineurs",
+    "size": 2,
+    "hp": 600,
+    "cost": {
+      "wood": 75
+    },
+    "buildTimeMs": 30000,
+    "vision": 4
+  },
+  "mill": {
+    "name": "Moulin",
+    "size": 2,
+    "hp": 600,
+    "cost": {
+      "wood": 75
+    },
+    "buildTimeMs": 30000,
+    "vision": 4
+  },
+  "farm": {
+    "name": "Ferme",
+    "size": 3,
+    "hp": 300,
+    "cost": {
+      "wood": 60
+    },
+    "buildTimeMs": 20000,
+    "vision": 4
   }
 }

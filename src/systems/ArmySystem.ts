@@ -3,7 +3,7 @@ import type { Building, GameState, TilePos, Unit, UnitType } from '../core/types
 import type { MovementSystem } from './MovementSystem';
 import { tileOf } from './MovementSystem';
 
-const UNIT_TYPES: UnitType[] = ['knight', 'archer'];
+const UNIT_TYPES: UnitType[] = ['knight', 'archer', 'spearman'];
 const SLOT_EPSILON = 0.05;
 
 export const isArmyCamp = (b: Building): boolean => b.type === 'armyCamp' && b.buildProgress >= 1;
@@ -28,7 +28,7 @@ export interface CampDisplay {
 
 export function campDisplay(state: GameState, campId: string): CampDisplay {
   const resting = soldiersInCamp(state, campId);
-  const byType = { knight: 0, archer: 0 } as Record<UnitType, number>;
+  const byType = { knight: 0, archer: 0, spearman: 0 } as Record<UnitType, number>;
   for (const u of resting) byType[u.type]++;
   const cap = BUILDINGS.armyCamp.visibleSoldiers ?? 8;
   const quota = proRata(byType, Math.min(cap, resting.length));
@@ -45,7 +45,7 @@ export function campDisplay(state: GameState, campId: string): CampDisplay {
 /** Largest-remainder split of `n` figurines between unit types. */
 function proRata(counts: Record<UnitType, number>, n: number): Record<UnitType, number> {
   const total = UNIT_TYPES.reduce((s, t) => s + counts[t], 0);
-  const out = { knight: 0, archer: 0 } as Record<UnitType, number>;
+  const out = { knight: 0, archer: 0, spearman: 0 } as Record<UnitType, number>;
   if (total === 0 || n === 0) return out;
   const rest = UNIT_TYPES.map((t) => {
     const exact = (counts[t] * n) / total;

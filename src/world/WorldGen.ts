@@ -4,7 +4,7 @@ import { BUILDINGS, GAME } from '../core/config';
 import type { TilePos, TileType } from '../core/types';
 
 const BUILDABLE: ReadonlySet<TileType> = new Set(['grass', 'sand']);
-const WALKABLE: ReadonlySet<TileType> = new Set(['grass', 'sand', 'forest', 'rock', 'ore']);
+const WALKABLE: ReadonlySet<TileType> = new Set(['grass', 'sand', 'forest', 'rock', 'iron']);
 
 export const isBuildable = (t: TileType): boolean => BUILDABLE.has(t);
 export const isWalkable = (t: TileType): boolean => WALKABLE.has(t);
@@ -59,7 +59,7 @@ export class WorldGen {
 
     const r = this.rockiness(tx * 0.06, ty * 0.06);
     if (r > 0.45) {
-      return r > 0.55 && hash2(tx, ty, this.seed) < 0.2 ? 'ore' : 'rock';
+      return r > 0.55 && hash2(tx, ty, this.seed) < 0.2 ? 'iron' : 'rock';
     }
     const m = this.moisture(tx * 0.07, ty * 0.07);
     if (m > 0.2) return 'forest';
