@@ -63,8 +63,10 @@ export const RESOURCES = resourcesJson;
 export const WEAPONS = resourcesJson.weapons as Record<WeaponType, WeaponDef>;
 export const BUILDINGS = buildingsJson as unknown as Record<BuildingType, BuildingDef>;
 
-const { counterMultiplier, ...unitDefs } = unitsJson;
+const { counterMultiplier, villager, ...unitDefs } = unitsJson;
 export const COUNTER_MULTIPLIER = counterMultiplier;
+/** Visible civilian (not a UnitType: villagers don't fight and aren't in `state.units`). */
+export const VILLAGER = villager;
 export const UNITS = unitDefs as unknown as Record<UnitType, UnitDef>;
 
 export const AI = aiJson as unknown as {

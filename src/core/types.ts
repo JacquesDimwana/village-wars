@@ -39,15 +39,43 @@ export interface Building {
   buildProgress: number;
 }
 
-export interface Unit {
+/** Anything that walks on the grid (warriors and villagers). Handled by MovementSystem. */
+export interface Mover {
   id: string;
-  type: UnitType;
   ownerId: string;
-  /** Continuous tile coordinates (unit can be between tiles). */
+  /** Continuous tile coordinates (unit can be between tiles). Tile = floor(x + 0.5). */
   x: number;
   y: number;
+  /** Remaining tiles to walk through (A* result), next one first. Empty = standing. */
+  path: TilePos[];
+}
+
+export interface Unit extends Mover {
+  type: UnitType;
   hp: number;
   maxHp: number;
+}
+
+/**
+ * What a villager is doing. Auto jobs only *show* the building's production (no credit);
+ * `harvest` (player order) really gathers the tile and credits the village at drop-off.
+ */
+export type VillagerTask = 'idle' | 'toWork' | 'working' | 'returning' | 'wander' | 'goto';
+
+export interface Villager extends Mover {
+  /** Building the villager currently works for (auto assignment, see assignWorkers). */
+  jobId: string | null;
+  /** Player pinned this villager to a building: it gets a slot there first. */
+  pinnedJobId: string | null;
+  /** Player order: gather this tile (the villager leaves its job). */
+  harvest: TilePos | null;
+  task: VillagerTask;
+  /** Tile the current trip goes to (resource tile, building, wander spot). */
+  target: TilePos | null;
+  /** Time left in the current work / pause, ms. */
+  timerMs: number;
+  /** Resource carried (shown above the head). Only `harvest` loads are credited. */
+  carrying: { type: ResourceType; amount: number } | null;
 }
 
 export interface Village {
@@ -79,6 +107,8 @@ export interface GameState {
   villages: Record<string, Village>;
   buildings: Record<string, Building>;
   units: Record<string, Unit>;
+  /** Visible civilians (one per whole inhabitant). Kept in sync by VillagerSystem. */
+  villagers: Record<string, Villager>;
   nextId: number;
   /** Remaining resource amount for tiles that have been harvested. Key: "tx,ty". */
   depletion: Record<string, number>;

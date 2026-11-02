@@ -58,6 +58,27 @@ C'est le dilemme central : **chaque habitant est soit un travailleur, soit un gu
   construction, l'hôtel de ville (production faible de secours) en dernier.
   **Production = production max × postes occupés / postes totaux.** Fonderie et
   armurerie fonctionnent aussi au prorata de leurs travailleurs.
+- **Villageois visibles (modèle hybride)** : chaque habitant civil est un villageois
+  visible sur la carte. Par défaut il va seul au travail : la règle de production
+  ci-dessus reste la seule source de production automatique, les villageois ne font
+  que la *montrer* par des allers-retours visibles entre leur bâtiment et la ressource
+  proche (forêt, roche, filon), avec la ressource portée au-dessus de la tête. Les
+  travailleurs de la fonderie et de l'armurerie restent devant leur bâtiment. Les
+  habitants sans poste se promènent dans le village.
+- **Ordres manuels (facultatifs)** : le joueur peut sélectionner un villageois et
+  - toucher une forêt / un rocher / un filon : il quitte son poste et **récolte cette
+    tuile lui-même** (`units.json` → `villager` : vitesse, charge, vitesse de récolte).
+    Il rapporte sa charge au bâtiment de dépôt le plus proche (camp de bûcherons pour le
+    bois, carrière pour la pierre, mine pour le minerai, l'hôtel de ville pour tout), qui
+    crédite le village. Chaque tuile contient `resources.json` → `tileAmounts` ; une
+    tuile vide est épuisée et le villageois passe à la tuile du même type la plus proche
+    (sinon il reprend un poste). C'est utile pour récolter une ressource sans bâtiment
+    (ex. du minerai avant la mine). Un récolteur manuel n'occupe pas de poste.
+  - toucher un bâtiment de production à lui : il y est **affecté en priorité** (les
+    postes sont d'abord donnés aux villageois affectés à la main, puis aux autres dans
+    l'ordre de construction). Sans ordre manuel, rien ne change : aucune micro-gestion
+    n'est obligatoire.
+  - toucher le sol : il y va, puis reprend son poste automatique.
 - **Armurerie** : forge les armes à partir des ressources — **épée** (bois + fer) et
   **arc** (bois). File d'attente, vitesse proportionnelle au nombre de forgerons.
 - **Conversion** : à la caserne, **1 habitant + 1 arme → 1 guerrier** (épée → chevalier,
@@ -91,8 +112,8 @@ une barre de progression et ne produit rien.
 
 ## 6. Unités
 
-Version de départ : **2 unités, toutes deux des guerriers** issus des habitants.
-Les habitants civils ne sont pas affichés sur la map (ce sont des chiffres dans le HUD).
+Version de départ : **2 unités, toutes deux des guerriers** issus des habitants, plus
+les **villageois** (habitants civils, voir §4), visibles et sans combat.
 
 | Unité | Arme | Rôle | Avantage |
 |---|---|---|---|
@@ -102,14 +123,23 @@ Les habitants civils ne sont pas affichés sur la map (ce sont des chiffres dans
 Stats dans `src/config/units.json`. Multiplicateur de contre : ×1.5.
 Combat : automatique. Un guerrier attaque l'ennemi le plus proche dans son `aggroRange`.
 Les guerriers au repos dans un village attaqué défendent automatiquement.
-Déplacement : A* sur la grille (easystar), l'eau et les bâtiments bloquent.
+Déplacement (guerriers et villageois) : A* 8 directions sur la grille, sans couper les
+coins, recherche bornée ; l'eau et les bâtiments bloquent (forêts, roches et filons se
+traversent). Les unités ne s'empilent pas : un groupe envoyé sur une tuile se répartit
+sur les tuiles libres autour, et les unités trop proches s'écartent doucement.
+Un guerrier déplacé reste à sa destination et découvre la carte autour de lui.
 
 ## 7. Contrôles (tactile)
 
 - Glisser 1 doigt sur le vide : déplacer la caméra
 - Pincer : zoom (distance caméra 10 à 44)
-- Tap sur unité : sélection ; tap long + glisser : sélection en rectangle
-- Tap sur sol avec guerriers sélectionnés : déplacer / attaquer selon la cible
+- Tap sur un guerrier ou un villageois : sélection (anneau jaune au sol) ; tap long +
+  glisser : sélection en rectangle (guerriers et villageois du joueur). Une barre en bas
+  au centre résume la sélection (« 🛡️ 4 · 👷 2 ») avec ✕ pour désélectionner.
+- Avec une sélection : tap sur le sol = déplacer (marqueur de destination) ; tap sur
+  forêt / roche / filon = les villageois sélectionnés y récoltent, les guerriers s'en
+  approchent ; tap sur un bâtiment de production = les villageois y sont affectés
+  (attaquer selon la cible : voir combat).
 - Bouton « Construire » : menu bâtiments → fantôme vert/rouge → tap pour poser
 - Bouton « Armée » : forger des armes (armurerie), convertir / démobiliser (caserne)
 - Bouton « Diplomatie » : liste des 5 villages IA

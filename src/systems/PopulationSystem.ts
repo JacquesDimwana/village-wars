@@ -30,8 +30,9 @@ export function totalPopulation(state: GameState, villageId: string): number {
 }
 
 /**
- * Assigns civilians to jobs. Producer buildings are filled in construction order;
- * the town hall (weak fallback production) is filled last.
+ * Assigns civilians to jobs. Villagers the player pinned to a building get a slot there
+ * first; then producer buildings are filled in construction order, the town hall (weak
+ * fallback production) last. Villagers on a manual harvest order hold no job.
  * Returns buildingId → workers assigned.
  */
 export function assignWorkers(state: GameState, villageId: string): Map<string, number> {
@@ -39,10 +40,22 @@ export function assignWorkers(state: GameState, villageId: string): Map<string, 
     .filter((b) => b.ownerId === villageId && b.buildProgress >= 1 && (BUILDINGS[b.type].workerSlots ?? 0) > 0)
     .sort((a, b) => Number(a.type === 'townHall') - Number(b.type === 'townHall') || idNum(a) - idNum(b));
   let free = civilians(state, villageId);
+  const pinned = new Map<string, number>();
+  for (const v of Object.values(state.villagers)) {
+    if (v.ownerId !== villageId) continue;
+    if (v.harvest) free--;
+    else if (v.pinnedJobId) pinned.set(v.pinnedJobId, (pinned.get(v.pinnedJobId) ?? 0) + 1);
+  }
+  free = Math.max(0, free);
   const result = new Map<string, number>();
   for (const b of jobs) {
-    const n = Math.min(free, BUILDINGS[b.type].workerSlots ?? 0);
+    const n = Math.min(free, BUILDINGS[b.type].workerSlots ?? 0, pinned.get(b.id) ?? 0);
     result.set(b.id, n);
+    free -= n;
+  }
+  for (const b of jobs) {
+    const n = Math.min(free, (BUILDINGS[b.type].workerSlots ?? 0) - result.get(b.id)!);
+    result.set(b.id, result.get(b.id)! + n);
     free -= n;
   }
   return result;
