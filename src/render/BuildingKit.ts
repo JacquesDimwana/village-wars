@@ -9,7 +9,7 @@ export const KIT_PARTS = [
 ] as const;
 type Part = typeof KIT_PARTS[number];
 type Placement = [Part, number, number, number, number?, number?, number?, number?];
-type KitType = Exclude<BuildingType, 'armyCamp'>;
+type KitType = Exclude<BuildingType, 'townHall'>;
 const P = Math.PI;
 
 // Pieces use the kit's original two-unit wall grid. The finished assembly is fitted below.
@@ -29,7 +29,6 @@ const fence: Placement[] = [
 function layout(type: KitType, variant: number): Placement[] {
   switch (type) {
     case 'house': return house(variant % 2 === 1);
-    case 'townHall': return house(true);
     case 'lumberCamp': return [
       ['Floor_WoodDark', 0, 0, 0], ['Prop_Support', -0.9, 0, -0.8], ['Prop_Support', 0.9, 0, -0.8],
       ['Roof_RoundTiles_4x4', 0, 2.6, 0, 0, 0.45, 0.3, 0.45],
@@ -46,6 +45,11 @@ function layout(type: KitType, variant: number): Placement[] {
     case 'smelter': return [...house(true).filter(([name]) => name !== 'Door_1_Flat'), ['Prop_Chimney', 1.15, 0, -0.5]];
     case 'armory': return [...house(true), ['Prop_Crate', 1.15, 0, 1], ['Prop_WoodenFence_Single', -0.5, 0, 1.6]];
     case 'barracks': return [...house(true), ...fence, ['Prop_Crate', 1.4, 0, 0.8]];
+    case 'armyCamp': return [
+      ['Floor_WoodDark', 0, 0, 0], ...fence,
+      ['Prop_WoodenFence_Single', -1, 0, -1.8], ['Prop_WoodenFence_Single', 1, 0, -1.8],
+      ['Prop_Crate', -0.9, 0, -0.7], ['Prop_Support', 0.8, 0, -0.8],
+    ];
     case 'tower': return [
       ['Wall_UnevenBrick_Straight', 0, 0, 1], ['Wall_UnevenBrick_Straight', 0, 0, -1, P],
       ['Wall_UnevenBrick_Straight', -1, 0, 0, -P / 2], ['Wall_UnevenBrick_Straight', 1, 0, 0, P / 2],
@@ -146,7 +150,7 @@ export class BuildingKit {
     const size = box.getSize(new THREE.Vector3());
     // Fit both the ground footprint and the height, preserving each kit's proportions.
     const widthLimit = type === 'tower' ? 0.65 : 1;
-    const heightLimit = type === 'townHall' || type === 'tower' ? 1.2 : 0.9;
+    const heightLimit = type === 'tower' ? 1.2 : 0.9;
     const scale = Math.min(widthLimit / Math.max(size.x, size.z, 0.001), heightLimit / Math.max(size.y, 0.001));
     const center = box.getCenter(new THREE.Vector3());
     merged.translate(-center.x, -box.min.y, -center.z);
