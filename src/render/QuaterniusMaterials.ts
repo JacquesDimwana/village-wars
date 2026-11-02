@@ -1,31 +1,27 @@
 import * as THREE from 'three';
 
-/** Convert FBX material groups to a shared palette texture for the VAT batch. */
+/** Preserve FBX material colors per face, including vertices shared by material groups. */
 export function paletteCharacter(root: THREE.Object3D): void {
   root.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    const colors = new Uint8Array(materials.length * 4);
-    materials.forEach((material, i) => {
-      const color = (material as THREE.MeshPhongMaterial).color.clone().convertLinearToSRGB();
-      colors.set([Math.round(color.r * 255), Math.round(color.g * 255), Math.round(color.b * 255), 255], i * 4);
-    });
-    const texture = new THREE.DataTexture(colors, materials.length, 1);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.magFilter = texture.minFilter = THREE.NearestFilter;
-    texture.needsUpdate = true;
-    const geometry = mesh.geometry;
-    const uv = new Float32Array(geometry.attributes.position.count * 2);
-    for (const group of geometry.groups) {
+    // A shared indexed vertex can belong to faces with different materials.
+    const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
+    mesh.geometry = geometry;
+    const colors = new Float32Array(geometry.attributes.position.count * 3);
+    const groups = geometry.groups.length ? geometry.groups : [{ start: 0, count: geometry.attributes.position.count, materialIndex: 0 }];
+    for (const group of groups) {
+      const material = materials[group.materialIndex ?? 0] as THREE.MeshPhongMaterial | undefined;
+      const color = material?.color ?? new THREE.Color(0xffffff);
       for (let i = group.start; i < group.start + group.count; i++) {
-        const vertex = geometry.index ? geometry.index.getX(i) : i;
-        uv[vertex * 2] = ((group.materialIndex ?? 0) + 0.5) / materials.length;
-        uv[vertex * 2 + 1] = 0.5;
+        colors[i * 3] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
       }
     }
-    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    mesh.material = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.9 });
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    mesh.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 });
   });
 }
 

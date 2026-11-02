@@ -73,6 +73,7 @@ export function bakeCharacter(scene: THREE.Object3D, animations: THREE.Animation
   // --- Static attributes (uv, index, optional-prop mask) ---
   const uv = new Float32Array(vertexCount * 2);
   const mask = new Float32Array(vertexCount);
+  const colors = new Float32Array(vertexCount * 3).fill(1);
   const indices: number[] = [];
   const partOf = new Uint16Array(vertexCount);
   let offset = 0;
@@ -80,6 +81,12 @@ export function bakeCharacter(scene: THREE.Object3D, animations: THREE.Animation
     const g = p.mesh.geometry;
     const n = g.attributes.position.count;
     const guv = g.attributes.uv;
+    const color = g.attributes.color;
+    if (color) for (let i = 0; i < n; i++) {
+      colors[(offset + i) * 3] = color.getX(i);
+      colors[(offset + i) * 3 + 1] = color.getY(i);
+      colors[(offset + i) * 3 + 2] = color.getZ(i);
+    }
     if (guv) for (let i = 0; i < n; i++) (uv[(offset + i) * 2] = guv.getX(i)), (uv[(offset + i) * 2 + 1] = guv.getY(i));
     if (p.optional) mask.fill(1, offset, offset + n);
     partOf.fill(pi, offset, offset + n);
@@ -184,12 +191,13 @@ export function bakeCharacter(scene: THREE.Object3D, animations: THREE.Animation
   geometry.setAttribute('position', new THREE.BufferAttribute(pos.slice(0, vertexCount * 3), 3));
   geometry.setAttribute('normal', new THREE.BufferAttribute(nrm.slice(0, vertexCount * 3), 3));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('vatMask', new THREE.BufferAttribute(mask, 1));
   let full = new THREE.BufferAttribute(new Uint32Array(indices), 1);
   for (let cell = 0.02; full.count > 6000 && cell <= 0.14; cell += 0.01) {
-    full = simplify(indices, pos, uv, partOf, spec.height * cell);
+    full = simplify(indices, pos, uv, colors, partOf, spec.height * cell);
   }
-  const lods = [full, ...LOD_CELLS.map((c) => simplify(Array.from(full.array), pos, uv, partOf, spec.height * c))];
+  const lods = [full, ...LOD_CELLS.map((c) => simplify(Array.from(full.array), pos, uv, colors, partOf, spec.height * c))];
   geometry.setIndex(full);
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, spec.height / 2, 0), spec.height * 2);
 
@@ -205,6 +213,10 @@ export function bakeCharacter(scene: THREE.Object3D, animations: THREE.Animation
     vatWidth: { value: width },
   };
   const material = source.clone();
+  material.color.set(0xffffff);
+  material.vertexColors = true;
+  material.roughness = 0.8;
+  material.metalness = 0;
   patchVat(material, uniforms);
   const depthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   patchVat(depthMaterial, uniforms);
@@ -216,12 +228,13 @@ export function bakeCharacter(scene: THREE.Object3D, animations: THREE.Animation
  * first original vertex of its cell (same mesh part, same palette area), so the
  * animation texture is still indexed by gl_VertexID. Degenerate triangles are dropped.
  */
-function simplify(indices: number[], pos: Float32Array, uv: Float32Array, partOf: Uint16Array, cell: number): THREE.BufferAttribute {
+function simplify(indices: number[], pos: Float32Array, uv: Float32Array, colors: Float32Array, partOf: Uint16Array, cell: number): THREE.BufferAttribute {
   const reps = new Map<string, number>();
   const remap = new Uint32Array(partOf.length);
   for (let i = 0; i < partOf.length; i++) {
     const key = [
       partOf[i],
+      colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2],
       Math.floor(pos[i * 3] / cell),
       Math.floor(pos[i * 3 + 1] / cell),
       Math.floor(pos[i * 3 + 2] / cell),
