@@ -14,6 +14,7 @@ export interface RtsCameraOptions {
   pitchDeg: number;
   yawDeg: number;
   fovDeg: number;
+  bounds?: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
 
 /**
@@ -111,6 +112,11 @@ export class RtsCamera {
   }
 
   private apply(): void {
+    if (this.opts.bounds) {
+      const b = this.opts.bounds;
+      this.target.x = THREE.MathUtils.clamp(this.target.x, b.minX, b.maxX);
+      this.target.z = THREE.MathUtils.clamp(this.target.z, b.minZ, b.maxZ);
+    }
     const pitch = THREE.MathUtils.degToRad(this.opts.pitchDeg);
     const yaw = THREE.MathUtils.degToRad(this.opts.yawDeg);
     const horiz = Math.cos(pitch) * this.distance;

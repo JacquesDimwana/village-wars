@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GAME } from '../core/config';
 import { hash2 } from '../core/rng';
 import type { TileType } from '../core/types';
 import type { WorldGen } from '../world/WorldGen';
@@ -54,7 +55,7 @@ interface Chunk {
 }
 
 /**
- * Infinite low-poly terrain, built per chunk:
+ * Low-poly terrain, built per chunk:
  * one InstancedMesh of boxes for the ground + instanced trees and rocks.
  */
 export class Terrain {
@@ -118,10 +119,11 @@ export class Terrain {
     this.water.position.x = focus.x;
     this.water.position.z = focus.z;
     const cs = this.chunkSize;
-    const minCx = Math.floor(Math.max(focus.x - radius, view?.minX ?? -Infinity) / cs);
-    const maxCx = Math.floor(Math.min(focus.x + radius, view?.maxX ?? Infinity) / cs);
-    const minCy = Math.floor(Math.max(focus.z - radius, view?.minZ ?? -Infinity) / cs);
-    const maxCy = Math.floor(Math.min(focus.z + radius, view?.maxZ ?? Infinity) / cs);
+    const limit = GAME.map.halfSize + GAME.map.borderWidth;
+    const minCx = Math.floor(Math.max(-limit, focus.x - radius, view?.minX ?? -Infinity) / cs);
+    const maxCx = Math.floor(Math.min(limit, focus.x + radius, view?.maxX ?? Infinity) / cs);
+    const minCy = Math.floor(Math.max(-limit, focus.z - radius, view?.minZ ?? -Infinity) / cs);
+    const maxCy = Math.floor(Math.min(limit, focus.z + radius, view?.maxZ ?? Infinity) / cs);
     const wanted = new Set<string>();
     let rebuilds = 0;
     for (let cy = minCy; cy <= maxCy; cy++) {

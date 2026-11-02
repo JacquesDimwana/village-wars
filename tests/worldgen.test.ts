@@ -4,6 +4,23 @@ import { createGameState } from '../src/core/GameState';
 import { WorldGen, isBuildable } from '../src/world/WorldGen';
 
 describe('WorldGen', () => {
+  it('keeps water outside the map and village spawns away from its borders', () => {
+    const half = GAME.map.halfSize;
+    const limit = half - GAME.map.borderWidth - 8;
+    for (const seed of [1, 7, 1337, 9999]) {
+      const w = new WorldGen(seed);
+      for (let n = -half - 1; n <= half + 1; n++) {
+        for (const [x, y] of [[n, -half - 1], [n, half + 1], [-half - 1, n], [half + 1, n]]) {
+          expect(w.rawTile(x, y)).toBe('water');
+          expect(w.getTile(x, y)).toBe('water');
+        }
+      }
+      for (const spawn of w.spawns) {
+        expect(Math.abs(spawn.tx)).toBeLessThanOrEqual(limit);
+        expect(Math.abs(spawn.ty)).toBeLessThanOrEqual(limit);
+      }
+    }
+  });
   it('is deterministic for a given seed', () => {
     const a = new WorldGen(123);
     const b = new WorldGen(123);

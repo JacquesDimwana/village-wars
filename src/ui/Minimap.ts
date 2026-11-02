@@ -16,7 +16,7 @@ export interface MinimapView {
 }
 
 /**
- * Top-right minimap: 1 pixel per tile over a fixed square around the player's town hall.
+ * Top-right minimap: 1 pixel per tile over the whole map.
  * Unexplored tiles are grey; explored tiles show the terrain. Tap → move the camera there.
  */
 export class Minimap {
@@ -36,16 +36,15 @@ export class Minimap {
 
   constructor(
     parent: HTMLElement,
-    center: { x: number; y: number },
     private getState: () => GameState,
     private tileAt: (tx: number, ty: number) => TileType,
     private getView: () => MinimapView,
     onJump: (x: number, y: number) => void,
   ) {
     const half = GAME.minimap.halfSize;
-    this.size = half * 2;
-    this.originX = Math.round(center.x) - half;
-    this.originY = Math.round(center.y) - half;
+    this.size = half * 2 + 1;
+    this.originX = -half;
+    this.originY = -half;
 
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'minimap';

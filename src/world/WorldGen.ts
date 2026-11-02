@@ -14,7 +14,7 @@ export interface SpawnPoint extends TilePos {
 }
 
 /**
- * Deterministic, infinite terrain. Same seed → same world.
+ * Deterministic finite terrain. Same seed → same world.
  * Pure TypeScript (no Three.js) so it can be unit-tested.
  */
 export class WorldGen {
@@ -37,6 +37,7 @@ export class WorldGen {
 
   /** Terrain at a tile, including the forced clearings around town halls. */
   getTile(tx: number, ty: number): TileType {
+    if (Math.max(Math.abs(tx), Math.abs(ty)) > GAME.map.halfSize) return 'water';
     for (const s of this.spawns) {
       if (Math.abs(tx - s.tx) <= this.clearRadius && Math.abs(ty - s.ty) <= this.clearRadius) {
         return 'grass';
@@ -47,10 +48,14 @@ export class WorldGen {
 
   /** Terrain from noise only. */
   rawTile(tx: number, ty: number): TileType {
+    const edgeDistance = GAME.map.halfSize - Math.max(Math.abs(tx), Math.abs(ty));
+    if (edgeDistance < 0) return 'water';
+    const coast = Math.max(0, 1 - edgeDistance / GAME.map.borderWidth);
     const e =
       this.elevation(tx * 0.025, ty * 0.025) * 0.7 + this.elevation(tx * 0.08, ty * 0.08) * 0.3;
-    if (e < -0.4) return 'water';
-    if (e < -0.32) return 'sand';
+    const coastalElevation = e - coast * 1.5;
+    if (coastalElevation < -0.4) return 'water';
+    if (coastalElevation < -0.32) return 'sand';
 
     const r = this.rockiness(tx * 0.06, ty * 0.06);
     if (r > 0.45) {
@@ -76,12 +81,15 @@ export class WorldGen {
 
   /** Closest point (spiral search) around a target with enough land to build a village. */
   private findGoodSpot(target: TilePos): TilePos {
+    const limit = GAME.map.halfSize - GAME.map.borderWidth - 8;
+    target = { tx: Math.max(-limit, Math.min(limit, target.tx)), ty: Math.max(-limit, Math.min(limit, target.ty)) };
     const maxRadius = 40;
     for (let r = 0; r <= maxRadius; r += 2) {
       for (let dy = -r; dy <= r; dy += 2) {
         for (let dx = -r; dx <= r; dx += 2) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
           const p = { tx: target.tx + dx, ty: target.ty + dy };
+          if (Math.abs(p.tx) > limit || Math.abs(p.ty) > limit) continue;
           if (this.landRatio(p.tx, p.ty, 7) >= 0.85) return p;
         }
       }

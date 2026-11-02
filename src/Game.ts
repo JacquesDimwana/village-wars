@@ -91,7 +91,10 @@ export class Game {
     this.sun.shadow.normalBias = 0.02;
     this.scene.add(this.sun, this.sun.target);
 
-    this.cam = new RtsCamera(this.renderer.domElement, GAME.camera);
+    const mapHalf = GAME.map.halfSize;
+    this.cam = new RtsCamera(this.renderer.domElement, {
+      ...GAME.camera, bounds: { minX: -mapHalf, maxX: mapHalf, minZ: -mapHalf, maxZ: mapHalf },
+    });
     this.terrain = new Terrain(this.world, assets, GAME.chunkSize);
     this.entities = new EntityRenderer(assets);
     this.crowd = new CrowdRenderer(assets, (tx, ty) => this.world.getTile(tx, ty));
@@ -120,7 +123,6 @@ export class Game {
     this.unitControl.onMarker = (tiles, kind) => this.crowd.showMarker(tiles, kind === 'assign' ? 'move' : kind);
     this.minimap = new Minimap(
       document.body,
-      home,
       () => this.state,
       (tx, ty) => this.world.getTile(tx, ty),
       () => ({ x: this.cam.target.x, y: this.cam.target.z, radius: this.cam.distance * 0.6 }),
@@ -196,6 +198,9 @@ export class Game {
     const d = this.cam.distance;
     if (d === this.shadowDistance) return;
     this.shadowDistance = d;
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = d + 15;
+    fog.far = d + 55;
     const e = d * SHADOW_EXTENT_PER_DISTANCE;
     const s = this.sun.shadow.camera;
     s.left = s.bottom = -e;
