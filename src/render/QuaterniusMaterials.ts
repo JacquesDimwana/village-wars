@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /** Preserve FBX material colors per face, including vertices shared by material groups. */
-export function paletteCharacter(root: THREE.Object3D): void {
+export function paletteCharacter(root: THREE.Object3D, palette: Record<string, number> = {}): void {
   root.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -9,11 +9,12 @@ export function paletteCharacter(root: THREE.Object3D): void {
     // A shared indexed vertex can belong to faces with different materials.
     const geometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry;
     mesh.geometry = geometry;
-    const colors = new Float32Array(geometry.attributes.position.count * 3);
+    const colors = new Float32Array(geometry.attributes.position.count * 3).fill(1);
     const groups = geometry.groups.length ? geometry.groups : [{ start: 0, count: geometry.attributes.position.count, materialIndex: 0 }];
     for (const group of groups) {
       const material = materials[group.materialIndex ?? 0] as THREE.MeshPhongMaterial | undefined;
-      const color = material?.color ?? new THREE.Color(0xffffff);
+      const override = material && palette[material.name];
+      const color = override === undefined ? material?.color ?? new THREE.Color(0xffffff) : new THREE.Color(override);
       for (let i = group.start; i < group.start + group.count; i++) {
         colors[i * 3] = color.r;
         colors[i * 3 + 1] = color.g;
