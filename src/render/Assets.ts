@@ -23,6 +23,22 @@ const NEUTRAL = ['building_scaffolding', 'building_destroyed', 'resource_stone',
 /** Crowd models drawn with vertex animation textures. */
 export type CrowdModelKind = 'knight' | 'archer' | 'villager';
 const CHARACTER_HEIGHT = 0.85;
+// The knight FBX exports near-black diffuse values for these materials.
+const KNIGHT_PALETTE: Record<string, number> = {
+  Skin: 0xe6b58c, Armor: 0x9aa8b3, Armor_Dark: 0x566572,
+  Detail: 0x986137, Red: 0xb63228,
+};
+
+function addKnightSword(scene: THREE.Object3D): void {
+  const hand = scene.getObjectByName('FistR');
+  if (!hand) throw new Error('Knight right hand bone not found');
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.85, 0.04), new THREE.MeshStandardMaterial({ color: 0xb8c3ca }));
+  blade.position.y = 0.56;
+  hand.add(blade);
+  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.07, 0.07), new THREE.MeshStandardMaterial({ color: 0x77838b }));
+  guard.position.y = 0.16;
+  hand.add(guard);
+}
 const CROWD_SPECS: Record<CrowdModelKind, { file: string; spec: BakeSpec }> = {
   knight: {
     file: 'quaternius/characters/Knight_Male.fbx',
@@ -97,7 +113,10 @@ export class Assets {
       const scene = characters.get(file);
       if (!scene) throw new Error(`Character not loaded: ${file}`);
       if (kind === 'archer') await rangerAtlas(scene, BASE + 'quaternius/ranger/');
-      else paletteCharacter(scene);
+      else {
+        if (kind === 'knight') addKnightSword(scene);
+        paletteCharacter(scene, kind === 'knight' ? KNIGHT_PALETTE : {});
+      }
       this.crowd.set(kind, bakeCharacter(scene, scene.animations, spec));
     }
   }
