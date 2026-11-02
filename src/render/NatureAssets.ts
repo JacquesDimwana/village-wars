@@ -17,7 +17,11 @@ export function natureMaterial(parts: MeshPart[][]): THREE.MeshStandardMaterial 
     const slot = slots[mat.name];
     if (slot && mat.map) ctx.drawImage(mat.map.image as CanvasImageSource, slot[0] * 512, slot[1] * 512, 512, 512);
   }
-  // A small ivory swatch supplies the ore veins without another material.
+  // Solid swatches for the low-poly canopy and trunk, plus ore veins.
+  for (const [x, color] of [[1008, '#426c38'], [1012, '#315b3a'], [1016, '#795639']] as const) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, 1020, 4, 4);
+  }
   ctx.fillStyle = '#e6d9bc';
   ctx.fillRect(1020, 1020, 4, 4);
   const map = new THREE.CanvasTexture(canvas);
@@ -44,25 +48,42 @@ export function prepareNature(parts: MeshPart[], material: THREE.Material, tree:
     if (!merged) throw new Error('Could not merge nature geometry');
     return merged;
   };
-  let cell = tree ? 0.045 : 0.001;
-  let geometry = build(cell);
-  while (tree && geometry.getAttribute('position').count / 3 > 700 && cell < 0.15) {
-    geometry.dispose();
-    geometry = build(cell *= 1.25);
+  if (tree) {
+    const pine = parts.some((part) => part.material.name === 'Leaves_Pine');
+    const trunk = new THREE.CylinderGeometry(0.055, 0.08, 0.42, 6, 1).translate(0, 0.21, 0);
+    const canopy = pine
+      ? new THREE.ConeGeometry(0.53, 0.95, 8, 1).translate(0, 0.72, 0)
+      : new THREE.IcosahedronGeometry(0.53, 1).scale(1, 0.8, 1).translate(0, 0.75, 0);
+    const swatch = (geometry: THREE.BufferGeometry, x: number): THREE.BufferGeometry => {
+      const g = geometry.index ? geometry.toNonIndexed() : geometry;
+      if (g !== geometry) geometry.dispose();
+      const uv = g.getAttribute('uv');
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, x / 1024, 1022 / 1024);
+      return g;
+    };
+    const geometries = [swatch(trunk, 1018), swatch(canopy, pine ? 1014 : 1010)];
+    const geometry = mergeGeometries(geometries);
+    geometries.forEach((g) => g.dispose());
+    if (!geometry) throw new Error('Could not merge tree geometry');
+    return [{ geometry, material }];
   }
-  if (tree && geometry.getAttribute('position').count / 3 > 700) {
-    // Preserve spatially distributed foliage cards when clustering reaches its limit.
+  let cell = 0.02;
+  let geometry = build(cell);
+  while (geometry.getAttribute('position').count / 3 > 150 && cell < 1) {
+    geometry.dispose();
+    geometry = build(cell *= 1.3);
+  }
+  if (geometry.getAttribute('position').count / 3 > 150) {
+    // Bound the remaining rock geometry while retaining triangles across the source.
     const source = geometry;
     const count = source.getAttribute('position').count;
-    const groups = Math.ceil(count / 6);
-    const kept = Math.min(groups, 350);
     const reduced = new THREE.BufferGeometry();
     for (const name of ['position', 'normal', 'uv']) {
       const attr = source.getAttribute(name);
       const values: number[] = [];
-      for (let i = 0; i < kept; i++) {
-        const start = Math.floor(i * groups / kept) * 6;
-        for (let v = start; v < Math.min(start + 6, count); v++) {
+      for (let i = 0; i < 150; i++) {
+        const start = Math.floor(i * (count / 3) / 150) * 3;
+        for (let v = start; v < start + 3; v++) {
           for (let component = 0; component < attr.itemSize; component++) values.push(attr.getComponent(v, component));
         }
       }

@@ -67,7 +67,7 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1;
+    this.renderer.toneMappingExposure = 1.15;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -76,8 +76,8 @@ export class Game {
     this.scene.background = new THREE.Color(SKY);
     this.scene.fog = new THREE.Fog(SKY, 55, 110);
 
-    this.scene.add(new THREE.HemisphereLight(0xc5d7e4, 0x807966, 1.0));
-    this.sun = new THREE.DirectionalLight(0xfff1d9, 2.0);
+    this.scene.add(new THREE.HemisphereLight(0xc5d7e4, 0x9a927c, 1.25));
+    this.sun = new THREE.DirectionalLight(0xfff1d9, 2.2);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(1024, 1024);
     const s = this.sun.shadow.camera;
@@ -144,7 +144,7 @@ export class Game {
     }
 
     const t = this.cam.target;
-    this.terrain.update(t, this.cam.viewRadius, this.cam.camera.position, this.viewBounds());
+    this.terrain.update(t, this.cam.viewRadius, this.cam.camera.position, this.viewBounds(), this.cam.distance);
     this.sun.position.set(t.x + 40, 65, t.z + 30);
     this.sun.target.position.copy(t);
     this.followZoom();

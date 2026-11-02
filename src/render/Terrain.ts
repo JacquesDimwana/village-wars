@@ -30,7 +30,7 @@ const ORE_TINT = new THREE.Color(0.72, 0.62, 0.56);
 /**
  * Level of detail per chunk, from the camera distance to the chunk (strategic view):
  * 0 = instanced nature models; 1 = simplified models merged into one mesh;
- * 2 = same, one tree out of two (bigger) and flat ground tiles.
+ * 2 = same with flat ground tiles.
  */
 const LOD_DISTANCES = [55, 85];
 /** Distance margin before switching back, so chunks don't flicker between levels. */
@@ -39,8 +39,6 @@ const LOD_HYSTERESIS = 5;
 const LOD_REBUILDS_PER_FRAME = 3;
 /** Clustering cell of the simplified nature models per level 1, 2 (world units). */
 const LOD_CELLS = [0.18, 0.3];
-const FAR_TREE_KEEP = 0.5;
-const FAR_TREE_SCALE = 1.3;
 
 /** Ground area to load: axis-aligned bounds in world units. */
 export interface ViewBounds {
@@ -116,7 +114,7 @@ export class Terrain {
    * area seen by the camera, when given) and unloads the rest. `eye` (camera position)
    * picks each chunk's level of detail.
    */
-  update(focus: THREE.Vector3, radius: number, eye?: THREE.Vector3, view?: ViewBounds): void {
+  update(focus: THREE.Vector3, radius: number, eye?: THREE.Vector3, view?: ViewBounds, cameraDistance = 0): void {
     this.water.position.x = focus.x;
     this.water.position.z = focus.z;
     const cs = this.chunkSize;
@@ -131,7 +129,7 @@ export class Terrain {
         const key = `${cx},${cy}`;
         wanted.add(key);
         const old = this.chunks.get(key);
-        const lod = eye ? this.lodFor(cx, cy, eye, old?.lod) : 0;
+        const lod = Math.max(cameraDistance > 30 ? 1 : 0, eye ? this.lodFor(cx, cy, eye, old?.lod) : 0);
         if (old && (old.lod === lod || rebuilds >= LOD_REBUILDS_PER_FRAME)) continue;
         if (old) {
           rebuilds++;
@@ -200,12 +198,8 @@ export class Terrain {
         const r2 = hash2(tx + 7919, ty - 104729, seed);
         const ox = (r - 0.5) * 0.35;
         const oz = (r2 - 0.5) * 0.35;
-        if (type === 'forest' && flat) {
-          if (hash2(tx - 31, ty + 57, seed) < FAR_TREE_KEEP) {
-            trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r * Math.PI * 2, (0.85 + r2 * 0.3) * FAR_TREE_SCALE));
-          }
-        } else if (type === 'forest') {
-          trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r * Math.PI * 2, 0.85 + r2 * 0.3));
+        if (type === 'forest') {
+          trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox * 0.35, h, ty + 0.5 + oz * 0.35, r * Math.PI * 2, 0.95 + r2 * 0.1));
         } else if (type === 'rock' && r < 0.45) {
           rocks[Math.floor(r2 * rocks.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r2 * Math.PI * 2, 0.7 + r * 0.6));
         } else if (type === 'ore') {
