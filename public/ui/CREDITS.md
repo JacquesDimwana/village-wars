@@ -5,3 +5,10 @@
   pour servir de masque recolorable ; dessins non modifiés.
 - **UI Pack (RPG Expansion)** et **Fantasy UI Borders** : [Kenney](https://kenney.nl) —
   licence CC0 (voir les fichiers `kenney/LICENSE-*.txt`).
+
+# Crédits
+
+## Modèles 3D
+
+- KayKit Medieval Hexagon Pack — Kay Lousberg (CC0)
+- KayKit Forest Nature Pack — Kay Lousberg (CC0)

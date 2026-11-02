@@ -1070,3 +1070,69 @@ body.sheet-open .minimap,
 .btn.green:active:not(:disabled) {
   border-image-source: var(--k-btn-wood-pressed);
 }
+
+/* Royaume solaire — blue enamel, ivory parchment and a restrained gold trim. */
+.hud {
+  --wood: #173f72;
+  --wood-dark: #071a34;
+  --gold: #e8bb56;
+  --cream: #fff5d9;
+  --cream-dark: #e6d4a6;
+  --ink: #10233d;
+}
+
+.village-card,
+.res {
+  border-color: #e8bb56;
+  background: linear-gradient(145deg, rgba(34, 81, 142, 0.96), rgba(7, 25, 52, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 245, 205, 0.25), 0 4px 10px rgba(3, 14, 32, 0.5);
+}
+
+.crest,
+.res-icon {
+  border-color: #f6d87b;
+  background: radial-gradient(circle at 35% 28%, #4f86c8, #102d5b 68%);
+}
+
+.round {
+  border-color: #071a34;
+  box-shadow: inset 0 -5px 0 rgba(3, 14, 32, 0.52), inset 0 3px 0 rgba(255, 255, 255, 0.22), 0 4px 0 #071a34, 0 6px 12px rgba(3, 14, 32, 0.45);
+}
+
+.round.red,
+.round.blue {
+  background: radial-gradient(circle at 40% 28%, #6fa3df, #1b4f8d 70%);
+}
+
+.round.gold {
+  background: radial-gradient(circle at 40% 28%, #ffe7a0, #d69a2d 70%);
+}
+
+.round.small {
+  background: radial-gradient(circle at 40% 28%, #5e90c7, #163b70 70%);
+}
+
+.sheet-head {
+  border-image-source: var(--k-btn-blue);
+  color: #fffdf1;
+}
+
+.sheet::before,
+.selection::before,
+.village-card::before {
+  background: #e8bb56;
+}
+
+.tab.active {
+  border-image-source: var(--k-btn-blue);
+  color: #fffdf1 !important;
+}
+
+.btn.green {
+  border-image-source: var(--k-btn-blue);
+  color: #fff;
+}
+
+.btn.green:active:not(:disabled) {
+  border-image-source: var(--k-btn-blue-pressed);
+}

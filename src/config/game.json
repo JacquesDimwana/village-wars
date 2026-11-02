@@ -14,7 +14,7 @@
   },
   "camera": {
     "minDistance": 10,
-    "maxDistance": 44,
+    "maxDistance": 58,
     "initialDistance": 20,
     "pitchDeg": 52,
     "yawDeg": 45,

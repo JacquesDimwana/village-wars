@@ -35,7 +35,7 @@ Tout l'équilibrage est dans `src/config/*.json`.
 
 ## Crédits
 
-Modèles 3D : [KayKit](https://kaylousberg.com) par Kay Lousberg — Medieval Hexagon Pack
+Modèles 3D : [KayKit](https://kaylousberg.com) par Kay Lousberg — Medieval Hexagon Pack et Forest Nature Pack (CC0)
 et Adventurers Character Pack (CC0).
 
 Interface : [Kenney](https://kenney.nl) — UI Pack (RPG Expansion) et Fantasy UI Borders (CC0).

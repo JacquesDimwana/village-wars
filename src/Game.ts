@@ -18,7 +18,7 @@ import { WorldGen } from './world/WorldGen';
 
 /** Fixed logic tick so game rules don't depend on frame rate. */
 const TICK_MS = 100;
-const SKY = 0x9fd4f0;
+const DAY_SKY = new THREE.Color(0x9fd4f0);
 /** Distance fog and shadow area follow the zoom (values tuned at distance 20). */
 const FOG_NEAR_OFFSET = 15;
 const FOG_FAR_OFFSET = 55;
@@ -52,10 +52,12 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
     container.appendChild(this.renderer.domElement);
 
-    this.scene.background = new THREE.Color(SKY);
-    this.scene.fog = new THREE.Fog(SKY, 35, 75);
+    this.scene.background = DAY_SKY.clone();
+    this.scene.fog = new THREE.Fog(DAY_SKY.clone(), 35, 75);
 
     this.scene.add(new THREE.HemisphereLight(0xe8f4ff, 0x5b6b3a, 1.6));
     this.sun = new THREE.DirectionalLight(0xfff1d6, 2.4);

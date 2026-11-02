@@ -4,6 +4,15 @@ import type { TileType } from '../core/types';
 import type { WorldGen } from '../world/WorldGen';
 import { NATURE, type Assets, type MeshPart } from './Assets';
 
+/** Names used in the game’s visual direction and future biome UI. */
+export const BIOME_NAMES = {
+  solar: 'Royaume solaire',
+  wild: 'Royaume sauvage',
+  astral: 'Royaume astral',
+} as const;
+
+export type Biome = keyof typeof BIOME_NAMES;
+
 /** Top height of each tile type (world units, 1 tile = 1 unit). */
 export const TILE_HEIGHT: Record<TileType, number> = {
   water: -0.35,
@@ -15,13 +24,59 @@ export const TILE_HEIGHT: Record<TileType, number> = {
 };
 
 export const TILE_COLOR: Record<TileType, number> = {
-  water: 0x2b6a8f,
-  sand: 0xe6d29a,
-  grass: 0x86c552,
-  forest: 0x6aae3e,
-  rock: 0xa5a29a,
-  ore: 0x9c8a7a,
+  water: 0x4389a6,
+  sand: 0xe8d09a,
+  grass: 0x78b65c,
+  forest: 0x57924c,
+  rock: 0x9a9286,
+  ore: 0xa77758,
 };
+
+/** Violet-blue palette for the rare Astral Realm areas of the map. */
+const ASTRAL_TILE_COLOR: Record<TileType, number> = {
+  water: 0x276f93,
+  sand: 0xb1a5d8,
+  grass: 0x6075a8,
+  forest: 0x635693,
+  rock: 0x77709f,
+  ore: 0x9e6eac,
+};
+
+/** Warm, defensive Kingdom Wild palette for the autumn regions. */
+const WILD_TILE_COLOR: Record<TileType, number> = {
+  water: 0x497a82,
+  sand: 0xc99d62,
+  grass: 0x8a7444,
+  forest: 0x43543b,
+  rock: 0x8b7262,
+  ore: 0xae6a3e,
+};
+
+const SOLAR_TREE_TINT = new THREE.Color(0.84, 1.04, 0.78);
+const SOLAR_ROCK_TINT = new THREE.Color(1.06, 0.96, 0.84);
+const ASTRAL_TREE_TINT = new THREE.Color(0.8, 0.7, 1.12);
+const ASTRAL_ROCK_TINT = new THREE.Color(0.78, 0.76, 1.14);
+const WILD_TREE_TINT = new THREE.Color(1.12, 0.78, 0.5);
+const WILD_ROCK_TINT = new THREE.Color(1.14, 0.76, 0.56);
+
+/**
+ * Three equal, fixed map regions. Each 120° sector occupies one third of the
+ * procedural world; the origin belongs to the solar kingdom.
+ */
+export function biomeAt(tx: number, ty: number): Biome {
+  const angle = (Math.atan2(ty, tx) + Math.PI * 2) % (Math.PI * 2);
+  const sector = Math.floor((angle + Math.PI / 3) / ((Math.PI * 2) / 3)) % 3;
+  return (['solar', 'wild', 'astral'] as const)[sector];
+}
+
+/** Final terrain color used by the world and the minimap. */
+export function terrainColor(type: TileType, tx: number, ty: number): number {
+  switch (biomeAt(tx, ty)) {
+    case 'wild': return WILD_TILE_COLOR[type];
+    case 'astral': return ASTRAL_TILE_COLOR[type];
+    default: return TILE_COLOR[type];
+  }
+}
 
 const ORE_TINT = new THREE.Color(0.95, 0.55, 0.35);
 
@@ -41,6 +96,12 @@ export class Terrain {
   private treeParts: MeshPart[][];
   private rockParts: MeshPart[][];
   private oreParts: MeshPart[][];
+  private astralTreeParts: MeshPart[][];
+  private astralRockParts: MeshPart[][];
+  private astralOreParts: MeshPart[][];
+  private wildTreeParts: MeshPart[][];
+  private wildRockParts: MeshPart[][];
+  private wildOreParts: MeshPart[][];
   private water: THREE.Mesh;
 
   constructor(
@@ -48,8 +109,8 @@ export class Terrain {
     assets: Assets,
     private chunkSize: number,
   ) {
-    this.treeParts = NATURE.trees.map((n) => assets.parts(n, n.startsWith('trees_') ? 1.05 : 0.75));
-    this.rockParts = NATURE.rocks.map((n) => assets.parts(n, 0.7));
+    this.treeParts = NATURE.trees.map((asset) => tintParts(assets.parts(asset.file, asset.footprint), SOLAR_TREE_TINT));
+    this.rockParts = NATURE.rocks.map((asset) => tintParts(assets.parts(asset.file, asset.footprint), SOLAR_ROCK_TINT));
     this.oreParts = this.rockParts.map((parts) =>
       parts.map((p) => {
         const mat = (p.material as THREE.MeshStandardMaterial).clone();
@@ -57,11 +118,23 @@ export class Terrain {
         return { geometry: p.geometry, material: mat };
       }),
     );
+    this.astralTreeParts = this.treeParts.map((parts) => tintParts(parts, ASTRAL_TREE_TINT));
+    this.astralRockParts = this.rockParts.map((parts) => tintParts(parts, ASTRAL_ROCK_TINT));
+    this.astralOreParts = this.oreParts.map((parts) => tintParts(parts, ASTRAL_ROCK_TINT));
+    this.wildTreeParts = this.treeParts.map((parts) => tintParts(parts, WILD_TREE_TINT));
+    this.wildRockParts = this.rockParts.map((parts) => tintParts(parts, WILD_ROCK_TINT));
+    this.wildOreParts = this.oreParts.map((parts) => tintParts(parts, WILD_ROCK_TINT));
 
     // One big translucent water plane following the camera.
     this.water = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
-      new THREE.MeshLambertMaterial({ color: 0x4aa3d8, transparent: true, opacity: 0.82 }),
+      new THREE.MeshPhongMaterial({
+        color: 0x4e9fc4,
+        specular: 0xa7e7f4,
+        shininess: 48,
+        transparent: true,
+        opacity: 0.76,
+      }),
     );
     this.water.position.y = -0.12;
     this.water.receiveShadow = true;
@@ -112,6 +185,12 @@ export class Terrain {
     const trees: THREE.Matrix4[][] = this.treeParts.map(() => []);
     const rocks: THREE.Matrix4[][] = this.rockParts.map(() => []);
     const ores: THREE.Matrix4[][] = this.oreParts.map(() => []);
+    const astralTrees: THREE.Matrix4[][] = this.treeParts.map(() => []);
+    const astralRocks: THREE.Matrix4[][] = this.rockParts.map(() => []);
+    const astralOres: THREE.Matrix4[][] = this.oreParts.map(() => []);
+    const wildTrees: THREE.Matrix4[][] = this.treeParts.map(() => []);
+    const wildRocks: THREE.Matrix4[][] = this.rockParts.map(() => []);
+    const wildOres: THREE.Matrix4[][] = this.oreParts.map(() => []);
 
     let i = 0;
     for (let y = 0; y < cs; y++) {
@@ -121,10 +200,11 @@ export class Terrain {
         const type = this.world.getTile(tx, ty);
         const h = TILE_HEIGHT[type];
         const r = hash2(tx, ty, seed);
+        const biome = biomeAt(tx, ty);
         // Box from y=-1 to y=h so tiles never show gaps.
         m.makeScale(1, h + 1, 1).setPosition(tx + 0.5, (h - 1) / 2, ty + 0.5);
         ground.setMatrixAt(i, m);
-        color.setHex(TILE_COLOR[type]).multiplyScalar(0.94 + r * 0.12);
+        color.setHex(terrainColor(type, tx, ty)).multiplyScalar(0.94 + r * 0.12);
         ground.setColorAt(i, color);
         i++;
 
@@ -132,11 +212,14 @@ export class Terrain {
         const ox = (r - 0.5) * 0.35;
         const oz = (r2 - 0.5) * 0.35;
         if (type === 'forest') {
-          trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r * Math.PI * 2, 0.85 + r2 * 0.3));
-        } else if (type === 'rock' && r < 0.45) {
-          rocks[Math.floor(r2 * rocks.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r2 * Math.PI * 2, 0.7 + r * 0.6));
+          const list = biome === 'astral' ? astralTrees : biome === 'wild' ? wildTrees : trees;
+          list[Math.floor(r2 * list.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r * Math.PI * 2, 0.85 + r2 * 0.3));
+        } else if (type === 'rock' && r < 0.7) {
+          const list = biome === 'astral' ? astralRocks : biome === 'wild' ? wildRocks : rocks;
+          list[Math.floor(r2 * list.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r2 * Math.PI * 2, 0.55 + r * 0.7));
         } else if (type === 'ore') {
-          ores[Math.floor(r2 * ores.length)].push(placement(tx + 0.5, h, ty + 0.5, r * Math.PI * 2, 1.1));
+          const list = biome === 'astral' ? astralOres : biome === 'wild' ? wildOres : ores;
+          list[Math.floor(r2 * list.length)].push(placement(tx + 0.5, h, ty + 0.5, r * Math.PI * 2, 1.1));
         }
       }
     }
@@ -149,6 +232,12 @@ export class Terrain {
     addInstances(group, this.treeParts, trees, false);
     addInstances(group, this.rockParts, rocks, false);
     addInstances(group, this.oreParts, ores, false);
+    addInstances(group, this.astralTreeParts, astralTrees, false);
+    addInstances(group, this.astralRockParts, astralRocks, false);
+    addInstances(group, this.astralOreParts, astralOres, false);
+    addInstances(group, this.wildTreeParts, wildTrees, false);
+    addInstances(group, this.wildRockParts, wildRocks, false);
+    addInstances(group, this.wildOreParts, wildOres, false);
     return { group };
   }
 
@@ -158,6 +247,14 @@ export class Terrain {
       if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
     });
   }
+}
+
+function tintParts(parts: MeshPart[], tint: THREE.Color): MeshPart[] {
+  return parts.map((part) => {
+    const material = (part.material as THREE.MeshStandardMaterial).clone();
+    material.color.multiply(tint);
+    return { geometry: part.geometry, material };
+  });
 }
 
 function placement(x: number, y: number, z: number, rotY: number, scale: number): THREE.Matrix4 {

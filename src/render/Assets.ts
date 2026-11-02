@@ -22,10 +22,36 @@ export const BUILDING_MODELS: Record<BuildingType, string[]> = {
   tower: ['tower_A'],
 };
 
-export const NATURE = {
-  /** Weighted by repetition: mostly cheap single trees, some clusters. */
-  trees: ['tree_single_A', 'tree_single_A', 'tree_single_B', 'tree_single_B', 'trees_A_small'],
-  rocks: ['rock_single_A', 'rock_single_B', 'rock_single_C', 'rock_single_D', 'rock_single_E'],
+export interface NatureAsset {
+  /** Path under public/models. The Forest Nature Pack is kept separate from buildings. */
+  file: string;
+  /** Visible width, in terrain tiles, after normalization. */
+  footprint: number;
+}
+
+/**
+ * KayKit Forest Nature Pack: deliberately selected compact, faceted models.
+ * Repetition here is intentional: the broad crown is the visual anchor of a forest.
+ */
+export const NATURE: { trees: NatureAsset[]; rocks: NatureAsset[] } = {
+  trees: [
+    { file: 'forest/Tree_2_B_Color1.gltf', footprint: 0.9 },
+    { file: 'forest/Tree_2_B_Color1.gltf', footprint: 0.9 },
+    { file: 'forest/Tree_1_A_Color1.gltf', footprint: 0.82 },
+    { file: 'forest/Tree_2_D_Color1.gltf', footprint: 0.96 },
+    { file: 'forest/Tree_3_A_Color1.gltf', footprint: 0.86 },
+    { file: 'forest/Tree_3_C_Color1.gltf', footprint: 0.94 },
+    { file: 'forest/Tree_4_B_Color1.gltf', footprint: 0.88 },
+  ],
+  rocks: [
+    { file: 'forest/Rock_1_A_Color1.gltf', footprint: 0.68 },
+    { file: 'forest/Rock_1_F_Color1.gltf', footprint: 0.72 },
+    { file: 'forest/Rock_1_J_Color1.gltf', footprint: 0.78 },
+    { file: 'forest/Rock_2_C_Color1.gltf', footprint: 0.64 },
+    { file: 'forest/Rock_2_H_Color1.gltf', footprint: 0.74 },
+    { file: 'forest/Rock_3_D_Color1.gltf', footprint: 0.7 },
+    { file: 'forest/Rock_3_N_Color1.gltf', footprint: 0.76 },
+  ],
 };
 
 const NEUTRAL = ['building_scaffolding', 'building_destroyed', 'resource_stone', 'resource_lumber'];
@@ -72,7 +98,8 @@ export class Assets {
       }
       files.push(`kaykit/flag_${c}.gltf`);
     }
-    for (const n of new Set([...NATURE.trees, ...NATURE.rocks, ...NEUTRAL])) files.push(`kaykit/${n}.gltf`);
+    for (const file of new Set([...NATURE.trees, ...NATURE.rocks].map((asset) => asset.file))) files.push(file);
+    for (const n of NEUTRAL) files.push(`kaykit/${n}.gltf`);
     const charFiles = Object.values(CHARACTER_FILES);
     const total = files.length + charFiles.length;
     let done = 0;
@@ -111,8 +138,8 @@ export class Assets {
    * Static model flattened into parts (world transforms baked) for instancing,
    * scaled so its widest horizontal side equals `footprint`, base at y=0, centered.
    */
-  parts(name: string, footprint: number): MeshPart[] {
-    const gltf = this.require(`kaykit/${name}.gltf`);
+  parts(file: string, footprint: number): MeshPart[] {
+    const gltf = this.require(file);
     gltf.scene.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(gltf.scene);
     const size = box.getSize(new THREE.Vector3());

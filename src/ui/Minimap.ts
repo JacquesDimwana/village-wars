@@ -1,7 +1,7 @@
 import { BUILDINGS, GAME } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
 import type { GameState, TileType } from '../core/types';
-import { TILE_COLOR } from '../render/Terrain';
+import { terrainColor } from '../render/Terrain';
 import { isExplored } from '../systems/FogSystem';
 
 const UNEXPLORED = [74, 79, 82];
@@ -88,7 +88,11 @@ export class Minimap {
         const i = py * this.size + px;
         let rgb = UNEXPLORED;
         if (isExplored(state.fog, this.originX + px, this.originY + py)) {
-          if (this.colors[i] < 0) this.colors[i] = TILE_COLOR[this.tileAt(this.originX + px, this.originY + py)];
+          if (this.colors[i] < 0) {
+            const tx = this.originX + px;
+            const ty = this.originY + py;
+            this.colors[i] = terrainColor(this.tileAt(tx, ty), tx, ty);
+          }
           const c = this.colors[i];
           rgb = [(c >> 16) & 255, (c >> 8) & 255, c & 255];
         }
