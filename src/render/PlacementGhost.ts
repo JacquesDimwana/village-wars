@@ -27,8 +27,9 @@ export class PlacementGhost {
   private model?: THREE.Object3D;
   private materials: THREE.MeshStandardMaterial[] = [];
   private tileMat = new THREE.MeshBasicMaterial({ color: OK_COLOR, transparent: true, opacity: 0.5, depthWrite: false });
-  /** Footprint tiles in one draw call (largest building is 3×3). */
-  private tiles = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2), this.tileMat, 9);
+  private tileGeo = new THREE.PlaneGeometry(0.92, 0.92).rotateX(-Math.PI / 2);
+  /** Footprint tiles in one draw call; regrown in start() for bigger buildings. */
+  private tiles = this.makeTiles(16);
   private dragId: number | null = null;
   private grab = new THREE.Vector2();
   private last: PlaceCheck | null = null;
@@ -40,7 +41,6 @@ export class PlacementGhost {
     private check: (type: BuildingType, tx: number, ty: number) => PlaceCheck,
   ) {
     this.root.visible = false;
-    this.tiles.renderOrder = 5;
     this.root.add(this.tiles);
     // Capture phase on the parent: runs before RtsCamera's listeners on the canvas.
     const parent = canvas.parentElement!;
@@ -75,6 +75,12 @@ export class PlacementGhost {
     });
     this.model.position.add(new THREE.Vector3(size / 2, 0.02, size / 2));
     this.root.add(this.model);
+    if (size * size > this.tiles.instanceMatrix.count) {
+      this.root.remove(this.tiles);
+      this.tiles.dispose();
+      this.tiles = this.makeTiles(size * size);
+      this.root.add(this.tiles);
+    }
     const m = new THREE.Matrix4();
     for (let i = 0; i < size * size; i++) {
       this.tiles.setMatrixAt(i, m.makeTranslation((i % size) + 0.5, 0.03, Math.floor(i / size) + 0.5));
@@ -96,6 +102,12 @@ export class PlacementGhost {
     this.model = undefined;
     this.materials.forEach((m) => m.dispose());
     this.materials = [];
+  }
+
+  private makeTiles(capacity: number): THREE.InstancedMesh {
+    const tiles = new THREE.InstancedMesh(this.tileGeo, this.tileMat, capacity);
+    tiles.renderOrder = 5;
+    return tiles;
   }
 
   moveTo(tx: number, ty: number): void {

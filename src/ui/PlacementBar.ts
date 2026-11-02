@@ -34,7 +34,7 @@ export class PlacementBar {
   }
 
   show(type: BuildingType): void {
-    setText(this.el.querySelector('b'), `${BUILDING_UI[type].icon} ${BUILDINGS[type].name}`);
+    setText(this.el.querySelector('b'), `${BUILDING_UI[type]?.icon ?? '🏗️'} ${BUILDINGS[type].name}`);
     this.el.classList.add('open');
     document.body.classList.add('placing');
   }

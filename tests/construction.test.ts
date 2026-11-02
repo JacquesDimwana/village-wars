@@ -3,7 +3,7 @@ import { BUILDINGS, GAME } from '../src/core/config';
 import { PLAYER_ID } from '../src/core/constants';
 import { EventBus } from '../src/core/EventBus';
 import { createGameState, townHallOf } from '../src/core/GameState';
-import type { TileType } from '../src/core/types';
+import type { BuildingType, TileType } from '../src/core/types';
 import { ConstructionSystem, canPlace, placeBuilding, upgradeBuilding } from '../src/systems/ConstructionSystem';
 import { WorldGen } from '../src/world/WorldGen';
 
@@ -85,6 +85,22 @@ describe('ConstructionSystem', () => {
     sys.update(state, 100);
     expect(res.building.buildProgress).toBe(1);
     expect(done).toEqual([res.building.id]);
+  });
+
+  it('handles any footprint size from the config (e.g. a 4×4 building)', () => {
+    const { state, hall } = setup();
+    const defs = BUILDINGS as unknown as Record<string, (typeof BUILDINGS)['house']>;
+    defs.bigTest = { ...BUILDINGS.house, size: 4 };
+    try {
+      const type = 'bigTest' as BuildingType;
+      // Touches the town hall's right edge but doesn't overlap it.
+      expect(canPlace(state, stubWorld(), type, hall.tx + 3, hall.ty - 3, PLAYER_ID).ok).toBe(true);
+      expect(canPlace(state, stubWorld(), type, hall.tx + 2, hall.ty - 3, PLAYER_ID)).toMatchObject({ reason: 'Emplacement occupé' });
+      const water = stubWorld({ [`${hall.tx + 6},${hall.ty}`]: 'water' });
+      expect(canPlace(state, water, type, hall.tx + 3, hall.ty - 3, PLAYER_ID)).toMatchObject({ reason: 'Terrain non constructible' });
+    } finally {
+      delete defs.bigTest;
+    }
   });
 
   it('upgrades the town hall through its levels', () => {
