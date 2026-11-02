@@ -17,8 +17,12 @@ hôtels de ville ennemis avant que le sien tombe.
 
 ## 2. Monde
 
-- Grille de tuiles (1 tuile = 1 unité 3D). Map découpée en **chunks de 32×32 tuiles**, générés à la
-  volée autour de la caméra à partir d'une **seed** (même seed = même map).
+- Grille de tuiles (1 tuile = 1 unité 3D). **Carte finie** de `game.json` → `map.halfSize`
+  × 2 tuiles de côté (240 × 240), centrée sur le village du joueur et générée à partir d'une
+  **seed** (même seed = même carte). Elle est découpée en chunks de 32×32 tuiles chargés
+  autour de la caméra. Les `map.borderWidth` dernières tuiles descendent vers une mer qui
+  entoure toute la carte (infranchissable) : on voit clairement le bord du monde. La caméra
+  ne peut pas sortir de la carte, et la mini-carte montre la carte entière.
 - Terrain (bruit simplex) : `water` (infranchissable), `sand`, `grass`, `forest`
   (bois), `rock` (pierre), `ore` (minerai de fer, rare, dans les zones rocheuses).
 - Le joueur spawn en (0,0). Les 5 villages IA spawn sur un cercle de rayon

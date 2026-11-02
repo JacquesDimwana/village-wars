@@ -25,7 +25,7 @@
     "maxRadius": 22
   },
   "minimap": {
-    "halfSize": 96
+    "halfSize": 120
   },
   "startingInhabitants": 3,
   "startingWeapons": {
@@ -42,5 +42,9 @@
   },
   "army": {
     "departIntervalMs": 350
+  },
+  "map": {
+    "halfSize": 120,
+    "borderWidth": 10
   }
 }
