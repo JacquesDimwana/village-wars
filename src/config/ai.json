@@ -72,5 +72,18 @@
     "reinforcementShare": 0.3,
     "breakPenalty": 0.4,
     "convoySpeed": 3
+  },
+  "repairThreshold": 0.8,
+  "resourceBias": {
+    "food": 80,
+    "wood": 80,
+    "stone": 80,
+    "iron": 80
+  },
+  "resourceWeight": {
+    "food": 5,
+    "wood": 4,
+    "stone": 1,
+    "iron": 1
   }
 }

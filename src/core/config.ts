@@ -73,6 +73,9 @@ export const AI = aiJson as unknown as {
   /** AI keeps at least this many civilians working before converting warriors. */
   minWorkers: number;
   housingThreshold: number;
+  repairThreshold: number;
+  resourceBias: Record<ResourceType, number>;
+  resourceWeight: Record<ResourceType, number>;
   personalities: Record<Personality, PersonalityDef>;
   assignment: Personality[];
   diplomacy: DiplomacyDef;
