@@ -128,11 +128,8 @@ export class UnitControl {
       } else this.setSelection([picked], mouse && additive);
       return true;
     }
-    // Desktop: a left click never gives orders; on empty ground / a building it deselects.
-    if (mouse) {
-      if (!additive && this.selectedIds.size > 0) this.clear();
-      return false;
-    }
+    // Same as a tap, so a Mac trackpad needs no right click. Shift only edits the selection.
+    if (mouse && additive) return false;
     return this.order(ndc, building, false);
   }
 
