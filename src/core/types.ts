@@ -144,6 +144,16 @@ export interface GameState {
   /** Tiles explored by the player (minimap / fog of war). */
   fog: FogState;
   status: 'playing' | 'won' | 'lost';
+  stats: GameStats;
+}
+
+/** Player statistics shown on the end screen (game time is `GameState.timeMs`). */
+export interface GameStats {
+  unitsTrained: number;
+  /** Resources deposited by the player’s villagers. */
+  resourcesGathered: number;
+  /** Enemy villages eliminated (by anyone). */
+  villagesDestroyed: number;
 }
 
 export interface FogState {

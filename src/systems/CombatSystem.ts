@@ -2,7 +2,6 @@ import { PROGRESSION } from '../core/config';
 import { cancelResearch } from './ProgressionSystem';
 import { refundTraining } from './TrainingSystem';
 import { BUILDINGS, COUNTER_MULTIPLIER, GAME, UNITS } from '../core/config';
-import { PLAYER_ID } from '../core/constants';
 import type { EventBus } from '../core/EventBus';
 import type { Building, GameState, Mover, Unit, Villager } from '../core/types';
 import type { MovementSystem } from './MovementSystem';
@@ -242,27 +241,5 @@ export class CombatSystem {
     while (b.researchQueue?.length) cancelResearch(state, b.id, 0);
     delete state.buildings[b.id];
     this.bus.emit('building:destroyed', { buildingId: b.id });
-    if (b.type !== 'townHall') return;
-    const village = state.villages[b.ownerId];
-    if (village?.alive) {
-      village.alive = false;
-      this.bus.emit('village:destroyed', { villageId: village.id });
-      if (village.isPlayer) this.bus.emit('notify', { message: 'Ton hôtel de ville est tombé !' });
-      else this.bus.emit('notify', { message: `${village.name} est détruit !` });
-    }
-    checkGameOver(state, this.bus);
   }
-}
-
-/** GDD §10: lost when the player's town hall falls, won when no non-allied rival is left. */
-export function checkGameOver(state: GameState, bus: EventBus): void {
-  if (state.status !== 'playing') return;
-  const player = state.villages[PLAYER_ID];
-  if (!player) return;
-  let status: 'won' | 'lost' | null = null;
-  if (!player.alive) status = 'lost';
-  else if (!Object.values(state.villages).some((v) => v.alive && v.id !== PLAYER_ID && isEnemy(state, PLAYER_ID, v.id))) status = 'won';
-  if (!status) return;
-  state.status = status;
-  bus.emit('game:over', { status });
 }

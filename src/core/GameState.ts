@@ -81,6 +81,7 @@ export function createGameState(world: WorldGen): GameState {
     depletion: {},
     fog: { explored: {}, radius: {}, version: 0 },
     status: 'playing',
+    stats: { unitsTrained: 0, resourcesGathered: 0, villagesDestroyed: 0 },
   };
 
   world.spawns.forEach((spawn, i) => {

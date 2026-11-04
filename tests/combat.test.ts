@@ -6,6 +6,7 @@ import { addBuilding, addUnit, createGameState, townHallOf } from '../src/core/G
 import type { GameState, TileType } from '../src/core/types';
 import { ArmySystem } from '../src/systems/ArmySystem';
 import { CombatSystem, hitDamage, orderAttack, resolveTarget } from '../src/systems/CombatSystem';
+import { VictorySystem } from '../src/systems/VictorySystem';
 import { MovementSystem } from '../src/systems/MovementSystem';
 import { spawnVillager } from '../src/systems/VillagerSystem';
 import { WorldGen } from '../src/world/WorldGen';
@@ -23,11 +24,13 @@ const setup = () => {
   bus.on('game:over', ({ status }) => events.push(`game:over:${status}`));
   const combat = new CombatSystem(movement, bus);
   const army = new ArmySystem(movement);
+  const victory = new VictorySystem(bus);
   const run = (seconds: number): void => {
     for (let i = 0; i < seconds * 10; i++) {
       state.timeMs += 100;
       army.update(state, 100);
       combat.update(state, 100);
+      victory.update(state);
       movement.update(state, 100);
     }
   };
@@ -204,7 +207,7 @@ describe('End of game', () => {
     expect(state.status).toBe('won');
   });
 
-  it('an allied village standing is not needed to win', () => {
+  it('breaks alliances when only allies remain', () => {
     const { state, run } = setup();
     for (const v of Object.values(state.villages)) {
       if (v.id === PLAYER_ID || v.id === AI) continue;
@@ -214,7 +217,8 @@ describe('End of game', () => {
     moveHall(state, AI, 1000, 1000);
     missionAt(state, 'knight', PLAYER_ID, 999, 1000);
     run(2);
-    expect(state.status).toBe('won');
+    expect(state.status).toBe('playing');
+    expect(state.villages[PLAYER_ID].allies).toEqual([]);
   });
 
   it('losing the player town hall loses the game', () => {

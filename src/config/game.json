@@ -56,5 +56,6 @@
     "repairHpPerSecond": 5,
     "repairCostFactor": 0.5,
     "cancelRefundFactor": 0.75
-  }
+  },
+  "endgame": { "victoryStarsMinutes": [20, 40], "autosaveSeconds": 10 }
 }

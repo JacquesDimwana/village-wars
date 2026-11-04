@@ -87,7 +87,7 @@ export class GatherSystem {
     if (v.task === 'returning') {
       if (v.path.length) return;
       const depot = Object.values(state.buildings).find(b => b.ownerId === v.ownerId && isDepot(b, v.carrying?.type === 'food' ? 'berry' : v.carrying?.type === 'wood' ? 'forest' : v.carrying?.type === 'stone' ? 'rock' : 'iron') && this.movement.isNextTo(v, b));
-      if (depot && v.carrying) { addResources(state.villages[v.ownerId], { [v.carrying.type]: v.carrying.amount }); v.carrying = null; this.bus?.emit('resources:changed', { villageId: v.ownerId, resources: { ...state.villages[v.ownerId].resources } }); v.task = 'idle'; }
+      if (depot && v.carrying) { const gained = v.carrying.amount; addResources(state.villages[v.ownerId], { [v.carrying.type]: gained }); v.carrying = null; this.bus?.emit('resources:changed', { villageId: v.ownerId, resources: { ...state.villages[v.ownerId].resources }, gained }); v.task = 'idle'; }
       else { this.drop(state, v); return; }
     }
     if (v.task === 'toWork') {

@@ -22,6 +22,9 @@ import { CombatSystem } from './systems/CombatSystem';
 import { GatherSystem } from './systems/GatherSystem';
 import { MovementSystem } from './systems/MovementSystem';
 import { VillagerSystem, listIdleVillagers } from './systems/VillagerSystem';
+
+import { StatsSystem } from './systems/StatsSystem';
+import { VictorySystem } from './systems/VictorySystem';
 import { Hud, type HudActions } from './ui/Hud';
 import { Minimap } from './ui/Minimap';
 import { PlacementBar } from './ui/PlacementBar';
@@ -37,7 +40,10 @@ const VIEW_MARGIN = 6;
 
 export class Game {
   readonly world = new WorldGen(GAME.seed);
-  readonly state: GameState = createGameState(this.world);
+  readonly state: GameState;
+  /** Logic speed multiplier (pause menu: ×1 / ×2). */
+  speed = 1;
+  paused = false;
   readonly renderer: THREE.WebGLRenderer;
   private foodSources = new FoodSources();
   readonly scene = new THREE.Scene();
@@ -72,10 +78,16 @@ export class Game {
   private combat = new CombatSystem(this.movement, bus);
   private construction = new ConstructionSystem(bus, this.movement);
 
+  private victory = new VictorySystem(bus);
+  private stats = new StatsSystem(bus);
+
   constructor(
     container: HTMLElement,
     assets: Assets,
+    /** Saved game to resume; a new game is created when absent. */
+    saved?: GameState | null,
   ) {
+    this.state = saved ?? createGameState(this.world);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -155,7 +167,7 @@ export class Game {
   private frame(): void {
     this.timer.update();
     const dt = Math.min(this.timer.getDelta(), 0.25);
-    this.accumulator += dt * 1000;
+    if (!this.paused) this.accumulator += dt * 1000 * this.speed;
     while (this.accumulator >= TICK_MS) {
       this.accumulator -= TICK_MS;
       this.tick(TICK_MS);
@@ -191,6 +203,8 @@ export class Game {
     this.fog.update(this.state, dt);
     this.ai.update(this.state, dt);
     // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
+    this.victory.update(this.state);
+    this.stats.update(this.state);
   }
 
   /**

@@ -56,6 +56,7 @@ export class TrainingSystem {
     b.trainingQueue.shift();
     if (item.type === 'villager') spawnVillager(state,b.ownerId,spot.tx,spot.ty);
     else { const unit = addUnit(state,item.type,b.ownerId,spot.tx,spot.ty); if (b.rallyPoint && this.movement.moveTo(state,unit,b.rallyPoint.tx,b.rallyPoint.ty)) unit.onMission = true; }
+    this.bus?.emit('unit:trained', { villageId: b.ownerId });
     if (budget === 0) break;
    }
   }

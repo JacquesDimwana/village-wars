@@ -147,7 +147,7 @@ Personnalités `src/config/ai.json` : agressive (caserne tôt, seuil d’attaque
 
 Vers chaque village IA découvert : proposer une alliance (acceptée si `baseAcceptance[personnalité] + (ta puissance / sa puissance) × 0,3 − relationsNégatives > 0,5`), envoyer des ressources par convoi pour améliorer la relation, demander des ressources à un allié disposant de plus de deux fois ses besoins, demander 30 % de son armée en renfort, ou rompre l’alliance. Les alliés ne s’attaquent pas.
 
-Victoire lorsque tous les hôtels de ville ennemis sont détruits. Si seuls des alliés restent, une alerte finale rompt les alliances : « Il ne peut en rester qu’un ». Hôtel de ville détruit : village éliminé (`village:destroyed`), ses soldats et bâtiments restants restent sur la carte ; destruction du sien = défaite. Écran final : durée, unités formées, ressources récoltées, villages détruits.
+Victoire lorsque tous les hôtels de ville ennemis sont détruits. Si seuls des alliés restent, une alerte finale rompt les alliances : « Il ne peut en rester qu’un ». Hôtel de ville détruit : village éliminé (`village:destroyed`), ses soldats et bâtiments restants restent sur la carte ; destruction du sien = défaite. Écran final : durée, unités formées, ressources récoltées, villages détruits ; en victoire, une à trois étoiles selon la durée. Écran titre avec nouvelle partie et reprise ; sauvegarde automatique locale périodique et en arrière-plan, effacée à la fin. Menu pause : reprendre, vitesse ×1 / ×2, recommencer ou revenir au menu principal.
 
 ## 12. Performance et périmètre
 
