@@ -1,3 +1,4 @@
+import { isVisible } from '../systems/FogSystem';
 /**
  * CrowdRenderer — draws every soldier and villager with a handful of draw calls.
  *
@@ -256,7 +257,7 @@ export class CrowdRenderer {
 
     for (const id of drawnUnitIds(state)) {
       const u = state.units[id];
-      if (!u) continue;
+      if (!u || (u.ownerId !== PLAYER_ID && !isVisible(state.fog, Math.floor(u.x + 0.5), Math.floor(u.y + 0.5)))) continue;
       const tint = this.c.setRGB(1, 1, 1).lerp(teamStyle(u.ownerId).marker, TEAM_TINT);
       const target = u.targetId && u.path.length === 0 ? resolveTarget(state, u.targetId) : null;
       const face = target ? (target.kind === 'building' ? buildingCenter(target.e) : target.e) : undefined;
@@ -275,7 +276,7 @@ export class CrowdRenderer {
       this.drawn.push({ id, kind: 'unit', x: u.x + 0.5, z: u.y + 0.5 });
     }
     for (const v of Object.values(state.villagers)) {
-      if (v.inside) continue;
+      if (v.inside || (v.ownerId !== PLAYER_ID && !isVisible(state.fog, Math.floor(v.x + 0.5), Math.floor(v.y + 0.5)))) continue;
       const yaw = this.track(v.id, v.x, v.y, dtSec);
       const clip: CrowdClip = v.path.length > 0 ? (v.carrying ? 'carry' : 'walk') : v.task === 'working' ? 'work' : 'idle';
       const founder = !v.enlistable;

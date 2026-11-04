@@ -79,7 +79,8 @@ export function createGameState(world: WorldGen): GameState {
     foodSources: {},
     nextId: 0,
     depletion: {},
-    fog: { explored: {}, radius: {}, version: 0 },
+    fog: { explored: {}, radius: {}, version: 0, visible: {}, visionVersion: 0, visionKey: '' },
+    diplomacy: { convoys: [], cooldowns: {}, lastStanding: false },
     status: 'playing',
     stats: { unitsTrained: 0, resourcesGathered: 0, villagesDestroyed: 0 },
   };

@@ -203,7 +203,7 @@ export class CombatSystem {
   private stopFighting(u: Unit): void {
     u.targetId = null;
     u.ordered = false;
-    if (!u.onMission) u.path = []; // ArmySystem walks it back to its camp slot
+    u.path = []; // Cancel pursuit, including when a new alliance makes the target friendly.
   }
 
   private updateTower(state: GameState, b: Building): void {

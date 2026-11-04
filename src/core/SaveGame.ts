@@ -1,7 +1,7 @@
 import type { GameState } from './types';
 
 /** Bump when GameState changes shape in a way old saves can't be loaded into. */
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 export const SAVE_KEY = 'village-wars:save';
 
 /** Subset of the Web Storage API, so tests can pass an in-memory store. */

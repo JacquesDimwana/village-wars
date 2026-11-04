@@ -1,4 +1,4 @@
-import type { BuildingType, Resources, TileType, WeaponType } from './types';
+import type { BuildingType, Cost, Resources, TileType, WeaponType } from './types';
 
 /** All game events and their payloads. Add new events here so they stay typed. */
 export interface GameEvents {
@@ -17,6 +17,16 @@ export interface GameEvents {
   'tile:tapped': { tx: number; ty: number; tile: TileType };
   /** Building tapped by the player (null = selection cleared). */
   'building:selected': { buildingId: string | null };
+  /** Answer to an alliance proposal (score: §9 formula, accepted above the threshold). */
+  'diplomacy:alliance': { fromId: string; toId: string; accepted: boolean; score: number };
+  'diplomacy:allianceBroken': { byId: string; otherId: string; reason: 'manual' | 'lastStanding' };
+  'diplomacy:convoySent': { convoyId: string; fromId: string; toId: string; resources: Cost };
+  'diplomacy:convoyArrived': { convoyId: string; fromId: string; toId: string; resources: Cost };
+  'diplomacy:resourcesRequested': { fromId: string; toId: string; accepted: boolean };
+  /** An ally sends these units towards `target` (tile coordinates). Movement/AI systems move them. */
+  'diplomacy:reinforcements': { allyId: string; requesterId: string; unitIds: string[]; target: { x: number; y: number } };
+  /** "Il ne peut en rester qu'un": only allies were left, every alliance has been broken. */
+  'diplomacy:lastStanding': Record<string, never>;
   notify: { message: string };
 }
 

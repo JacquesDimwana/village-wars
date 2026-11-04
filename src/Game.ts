@@ -1,3 +1,5 @@
+import { FogMask } from './render/FogOfWar';
+import { DiplomacySystem } from './systems/DiplomacySystem';
 import { FoodSources } from './render/FoodSources';
 import * as THREE from 'three';
 import { BUILDINGS, GAME } from './core/config';
@@ -66,6 +68,8 @@ export class Game {
   private ndc = new THREE.Vector2();
 
   private fog = new FogSystem();
+  private fogMask = new FogMask();
+  private diplomacy = new DiplomacySystem(bus);
   readonly movement = new MovementSystem((tx, ty) => this.world.getTile(tx, ty));
   private ai = new AISystem(this.world, this.movement);
   private rallyBuildingId: string | null = null;
@@ -131,6 +135,13 @@ export class Game {
     const hall = townHallOf(this.state, PLAYER_ID);
     const half = BUILDINGS.townHall.size / 2;
     const home = hall ? { x: hall.tx + half, y: hall.ty + half } : { x: 0, y: 0 };
+    bus.on('diplomacy:reinforcements', ({ unitIds, target }) => {
+      for (const id of unitIds) {
+        const u = this.state.units[id];
+        if (u) { u.onMission = true; u.departMs = 0; this.movement.moveTo(this.state, u, Math.floor(target.x), Math.floor(target.y)); }
+      }
+    });
+    bus.on('diplomacy:lastStanding', () => bus.emit('notify', { message: 'Il ne peut en rester qu’un ! Vos alliances sont rompues' }));
     this.cam.lookAt(home.x, home.y + 1);
     this.cam.onTap = (ndc, shift, mouse) => this.handleTap(ndc, shift, mouse);
 
@@ -179,6 +190,7 @@ export class Game {
     this.sun.target.position.copy(t);
     this.followZoom();
     this.foodSources.sync(this.state);
+    this.fogMask.update(this.state.fog);
     this.entities.sync(this.state);
     this.crowd.sync(this.state, dt, this.selectedIds, this.cam.distance);
     this.updatePlacement();
@@ -202,7 +214,7 @@ export class Game {
     this.combat.update(this.state, dt);
     this.fog.update(this.state, dt);
     this.ai.update(this.state, dt);
-    // TODO(agent E) diplomacy / fog of war on the 3D terrain (exploration data: state.fog)
+    this.diplomacy.update(this.state, dt);
     this.victory.update(this.state);
     this.stats.update(this.state);
   }

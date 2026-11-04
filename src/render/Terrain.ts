@@ -1,3 +1,4 @@
+import { fogMaterial } from './FogOfWar';
 import * as THREE from 'three';
 import { GAME } from '../core/config';
 import { hash2 } from '../core/rng';
@@ -62,7 +63,7 @@ export class Terrain {
   readonly root = new THREE.Group();
   private chunks = new Map<string, Chunk>();
   private box = new THREE.BoxGeometry(1, 1, 1);
-  private groundMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  private groundMat = fogMaterial(new THREE.MeshLambertMaterial({ color: 0xffffff }));
   private treeParts: MeshPart[][];
   private rockParts: MeshPart[][];
   private oreParts: MeshPart[][];
@@ -99,11 +100,14 @@ export class Terrain {
     this.lodOres = this.lodRocks.map((variants) => variants.map((parts) => parts.map(oreVeins)));
     this.lodMat = material.clone();
     this.lodMat.vertexColors = true;
+    fogMaterial(material);
+    fogMaterial(oreMaterial);
+    fogMaterial(this.lodMat);
 
     // One big translucent water plane following the camera.
     this.water = new THREE.Mesh(
       new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
-      new THREE.MeshLambertMaterial({ color: 0x557e84, transparent: true, opacity: 0.82 }),
+      fogMaterial(new THREE.MeshLambertMaterial({ color: 0x557e84, transparent: true, opacity: 0.82 })),
     );
     this.water.position.y = -0.12;
     this.water.receiveShadow = true;

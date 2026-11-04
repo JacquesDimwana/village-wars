@@ -95,7 +95,7 @@ export class Hud {
           actions.focus(x, y);
           this.openSheet(null);
         },
-        () => this.toast('Alliances : bientôt disponible'),
+        getState,
       ),
     };
     for (const sheet of Object.values(this.sheets)) sheet.onClose = () => this.openSheet(null);
