@@ -1,3 +1,5 @@
+import { currentTile } from './world/tiles';
+import { ResourceBars } from './render/ResourceBars';
 import { FogMask } from './render/FogOfWar';
 import { DiplomacySystem } from './systems/DiplomacySystem';
 import { FoodSources } from './render/FoodSources';
@@ -48,6 +50,7 @@ export class Game {
   paused = false;
   readonly renderer: THREE.WebGLRenderer;
   private foodSources = new FoodSources();
+  private resourceBars = new ResourceBars();
   readonly scene = new THREE.Scene();
   readonly cam: RtsCamera;
   readonly entities: EntityRenderer;
@@ -70,7 +73,7 @@ export class Game {
   private fog = new FogSystem();
   private fogMask = new FogMask();
   private diplomacy = new DiplomacySystem(bus);
-  readonly movement = new MovementSystem((tx, ty) => this.world.getTile(tx, ty));
+  readonly movement = new MovementSystem((tx, ty) => this.state ? currentTile(this.state, this.world, tx, ty) : this.world.getTile(tx, ty));
   private ai = new AISystem(this.world, this.movement);
   private rallyBuildingId: string | null = null;
   private idleIndex = 0;
@@ -130,7 +133,7 @@ export class Game {
       canPlace(this.state, this.world, type, tx, ty, PLAYER_ID),
     );
     this.placementBar = new PlacementBar(() => this.confirmPlacement(), () => this.stopPlacement());
-    this.scene.add(this.foodSources.root, this.terrain.root, this.entities.root, this.crowd.root, this.placement.root);
+    this.scene.add(this.resourceBars.root, this.foodSources.root, this.terrain.root, this.entities.root, this.crowd.root, this.placement.root);
 
     const hall = townHallOf(this.state, PLAYER_ID);
     const half = BUILDINGS.townHall.size / 2;
@@ -185,11 +188,12 @@ export class Game {
     }
 
     const t = this.cam.target;
-    this.terrain.update(t, this.cam.viewRadius, this.cam.camera.position, this.viewBounds(), this.cam.distance);
+    this.terrain.update(this.state, t, this.cam.viewRadius, this.cam.camera.position, this.viewBounds(), this.cam.distance);
     this.sun.position.set(t.x + 40, 65, t.z + 30);
     this.sun.target.position.copy(t);
     this.followZoom();
     this.foodSources.sync(this.state);
+    this.resourceBars.sync(this.state, this.world, this.cam.camera, dt);
     this.fogMask.update(this.state.fog);
     this.entities.sync(this.state);
     this.crowd.sync(this.state, dt, this.selectedIds, this.cam.distance);

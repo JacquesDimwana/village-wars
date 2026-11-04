@@ -66,7 +66,7 @@ export function orderHarvest(state: GameState, movement: MovementSystem, village
   if (farm && Object.values(state.villagers).some(v => v.harvest?.sourceId === farm.id && !villagers.includes(v))) return false;
   const selected = farm ? villagers.slice(0, 1) : villagers;
   for (const v of selected) {
-    v.harvest = source ? { tx, ty, sourceType: source.type, sourceId: source.id } : farm ? { tx: farm.tx, ty: farm.ty, sourceType: 'farm', sourceId: farm.id } : { tx, ty };
+    v.harvest = source ? { tx, ty, sourceType: source.type, sourceId: source.id } : farm ? { tx: farm.tx, ty: farm.ty, sourceType: 'farm', sourceId: farm.id } : { tx, ty, sourceType: tile as ResourceTile };
     v.jobId = null; v.pinnedJobId = null; v.task = 'idle'; v.target = null; v.path = []; v.timerMs = 0;
   }
   return selected.length > 0;
@@ -102,7 +102,7 @@ export class GatherSystem {
       if (type === 'berry' || type === 'animal') {
         const candidate = Object.values(state.foodSources).filter(s => s.type === type && s.remaining > 0).sort((a,b) => Math.hypot(a.tx-v.x,a.ty-v.y)-Math.hypot(b.tx-v.x,b.ty-v.y))[0];
         if (candidate) next = { tx: candidate.tx, ty: candidate.ty, sourceType: candidate.type, sourceId: candidate.id };
-      } else if ((type === 'forest' || type === 'rock' || type === 'iron')) next = nearestResourceTiles(state, this.movement, v.x, v.y, type, 1)[0] ?? null;
+      } else if ((type === 'forest' || type === 'rock' || type === 'iron')) { const tile = nearestResourceTiles(state, this.movement, v.x, v.y, type, 1)[0]; next = tile ? { ...tile, sourceType: type } : null; }
       if (!next) { this.stop(v); return; } v.harvest = next; v.task = 'idle'; return;
     }
     if (v.carrying && (v.carrying.type !== resourceOf(type) || v.carrying.amount >= VILLAGER.carryCapacity)) { this.drop(state, v); return; }

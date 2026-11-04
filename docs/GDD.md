@@ -31,6 +31,8 @@ Un villageois reçoit explicitement un ordre de récolte, se rend à la source, 
 
 À épuisement, le villageois cherche la source accessible du même type la plus proche ; à défaut il dépose sa charge et devient inactif. Les arbres, rochers et filons épuisés disparaissent et leur tuile devient herbe constructible ; les baies disparaissent. Un animal est d’abord tué par le villageois sur ordre de chasse, puis sa carcasse est récoltée comme source finie ; elle disparaît une fois vide. Les animaux ne repoussent pas. Les fermes sont renouvelables sans réensemencement ni épuisement, une seule personne par ferme ; elles ne produisent que lorsqu’un villageois y travaille.
 
+Une barre colorée indique la quantité restante des sources en cours de récolte et un éclat marque leur épuisement.
+
 Dépôts terminés : hôtel de ville pour les quatre ressources ; camp de bûcherons pour le bois ; camp de mineurs pour pierre et fer ; moulin pour nourriture. Les dépôts n’ont ni postes ni production. Aucun stock n’est crédité automatiquement ou au prorata. Les villageois restent visibles et simulés. Un ordre de déplacement interrompt le travail ; arrivé à destination, le villageois est inactif. Un nouvel ordre remplace l’ancien ; une charge conservée est déposée avant de récolter une autre ressource.
 
 ## 4. Population et départ

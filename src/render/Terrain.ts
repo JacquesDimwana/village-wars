@@ -2,7 +2,8 @@ import { fogMaterial } from './FogOfWar';
 import * as THREE from 'three';
 import { GAME } from '../core/config';
 import { hash2 } from '../core/rng';
-import type { TileType } from '../core/types';
+import { currentTile } from '../world/tiles';
+import type { GameState, TileType } from '../core/types';
 import type { WorldGen } from '../world/WorldGen';
 import { NATURE, type Assets, type MeshPart } from './Assets';
 import { mergePlaced, simplifyStatic, type MergeEntry } from './TerrainLod';
@@ -68,6 +69,7 @@ export class Terrain {
   private rockParts: MeshPart[][];
   private oreParts: MeshPart[][];
   private water: THREE.Mesh;
+  private depleted = new Set<string>();
   /** Flat top-face tile for far ground (2 triangles instead of 12). */
   private quad = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   /** Simplified models per level: [level - 1][variant][part]. */
@@ -119,7 +121,15 @@ export class Terrain {
    * area seen by the camera, when given) and unloads the rest. `eye` (camera position)
    * picks each chunk's level of detail.
    */
-  update(focus: THREE.Vector3, radius: number, eye?: THREE.Vector3, view?: ViewBounds, cameraDistance = 0): void {
+  update(state: GameState, focus: THREE.Vector3, radius: number, eye?: THREE.Vector3, view?: ViewBounds, cameraDistance = 0): void {
+    for (const [key, amount] of Object.entries(state.depletion)) {
+      if (amount > 0 || this.depleted.has(key)) continue;
+      this.depleted.add(key);
+      const [x, y] = key.split(',').map(Number);
+      const chunkKey = `${Math.floor(x / this.chunkSize)},${Math.floor(y / this.chunkSize)}`;
+      const chunk = this.chunks.get(chunkKey);
+      if (chunk) { this.disposeChunk(chunk); this.chunks.delete(chunkKey); }
+    }
     this.water.position.x = focus.x;
     this.water.position.z = focus.z;
     const cs = this.chunkSize;
@@ -141,7 +151,7 @@ export class Terrain {
           rebuilds++;
           this.disposeChunk(old);
         }
-        const chunk = this.buildChunk(cx, cy, lod);
+        const chunk = this.buildChunk(state, cx, cy, lod);
         this.chunks.set(key, chunk);
         this.root.add(chunk.group);
       }
@@ -171,7 +181,7 @@ export class Terrain {
     return lod;
   }
 
-  private buildChunk(cx: number, cy: number, lod: number): Chunk {
+  private buildChunk(state: GameState, cx: number, cy: number, lod: number): Chunk {
     const cs = this.chunkSize;
     const group = new THREE.Group();
     const flat = lod >= 2;
@@ -190,7 +200,7 @@ export class Terrain {
       for (let x = 0; x < cs; x++) {
         const tx = cx * cs + x;
         const ty = cy * cs + y;
-        const type = this.world.getTile(tx, ty);
+        const type = currentTile(state, this.world, tx, ty);
         const h = TILE_HEIGHT[type];
         const r = hash2(tx, ty, seed);
         // Box from y=-1 to y=h so tiles never show gaps (far: top face only).

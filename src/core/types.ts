@@ -96,7 +96,7 @@ export interface Villager extends Mover {
   /** Player pinned this villager to a building: it gets a slot there first. */
   pinnedJobId: string | null;
   /** Player order: gather this tile (the villager leaves its job). */
-  harvest: (TilePos & { sourceType?: 'berry' | 'animal' | 'farm'; sourceId?: string }) | null;
+  harvest: (TilePos & { sourceType?: 'berry' | 'animal' | 'farm' | 'forest' | 'rock' | 'iron'; sourceId?: string }) | null;
   task: VillagerTask;
   /** Tile the current trip goes to (resource tile, building, wander spot). */
   target: TilePos | null;

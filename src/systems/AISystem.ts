@@ -66,7 +66,7 @@ export class AISystem {
   }
   private place(state: GameState, hall: Building, type: BuildingType, owner: string): void {
     const kind = type === 'mill' ? 'food' : type === 'lumberCamp' ? 'wood' : type === 'minerCamp' ? 'stone' : null;
-    const worker = kind && Object.values(state.villagers).find(v => v.ownerId === owner && v.harvest && (kind === 'food' ? !!v.harvest.sourceType : this.movement.tile(v.harvest.tx, v.harvest.ty) === (kind === 'wood' ? 'forest' : 'rock')));
+    const worker = kind && Object.values(state.villagers).find(v => v.ownerId === owner && v.harvest && (kind === 'food' ? ['berry', 'animal', 'farm'].includes(v.harvest.sourceType ?? '') : this.movement.tile(v.harvest.tx, v.harvest.ty) === (kind === 'wood' ? 'forest' : 'rock')));
     const center = worker?.harvest ?? hall;
     for (let r = 1; r <= GAME.buildRadius; r++) for (let y = center.ty-r; y <= center.ty+r; y++) for (let x = center.tx-r; x <= center.tx+r; x++) {
       if (Math.max(Math.abs(x-center.tx), Math.abs(y-center.ty)) === r && placeBuilding(state, this.world, type, x, y, owner).ok) return;
@@ -76,8 +76,8 @@ export class AISystem {
     const counts: Record<ResourceType, number> = { food: 0, wood: 0, stone: 0, iron: 0 };
     const resource = (v: Villager): ResourceType | null => {
       if (!v.harvest) return null;
-      if (v.harvest.sourceType) return 'food';
-      const tile = this.movement.tile(v.harvest.tx, v.harvest.ty);
+      if (v.harvest.sourceType === 'berry' || v.harvest.sourceType === 'animal' || v.harvest.sourceType === 'farm') return 'food';
+      const tile = v.harvest.sourceType ?? this.movement.tile(v.harvest.tx, v.harvest.ty);
       return tile === 'forest' ? 'wood' : tile === 'rock' ? 'stone' : tile === 'iron' ? 'iron' : null;
     };
     for (const w of workers) { const r = resource(w); if (r) counts[r]++; }
