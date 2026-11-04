@@ -19,7 +19,7 @@ export class TitleScreen {
       <div class="title-main">
         <div class="title-crest">⚔️</div>
         <h1 class="title-logo">Village Wars</h1>
-        <p class="title-tag outlined">Fais grandir ton village. Arme tes habitants. Reste le dernier debout.</p>
+        <p class="title-tag outlined">Fais grandir ton village. Récolte, bâtis, forme ton armée. Reste le dernier debout.</p>
         <div class="title-actions">
           <div class="bar title-progress"><div></div></div>
         </div>
