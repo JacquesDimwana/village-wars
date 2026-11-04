@@ -27,7 +27,7 @@ export function natureMaterial(parts: MeshPart[][]): THREE.MeshStandardMaterial 
   const map = new THREE.CanvasTexture(canvas);
   map.flipY = false;
   map.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.MeshStandardMaterial({ map, roughness: 1, side: THREE.DoubleSide, alphaTest: 0.2 });
+  return new THREE.MeshStandardMaterial({ map, roughness: 1, emissive: 0x18300f, emissiveIntensity: 0.35, side: THREE.DoubleSide, alphaTest: 0.05 });
 }
 
 /** Normalize atlas UVs, cluster the tree geometry, and combine its material parts. */

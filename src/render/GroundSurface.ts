@@ -44,7 +44,7 @@ export function groundMaterial(): THREE.MeshStandardMaterial {
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       float noise = gn(floor(vGround*3.0));
       vec4 w = max(vSplat + (noise-0.5)*0.10, 0.0); w /= max(dot(w,vec4(1.0)),0.001);
-      vec3 albedo = sampleGround(groundMap0,vGround,noise).rgb*w.x + sampleGround(groundMap1,vGround,noise).rgb*w.y + sampleGround(groundMap2,vGround,noise).rgb*w.z + sampleGround(groundMap3,vGround,noise).rgb*w.w;
+      vec3 albedo = sampleGround(groundMap0,vGround,noise).rgb*vec3(0.85,1.35,0.72)*w.x + mix(sampleGround(groundMap0,vGround,noise).rgb*vec3(0.80,1.28,0.68), sampleGround(groundMap1,vGround,noise).rgb, 0.22)*w.y + sampleGround(groundMap2,vGround,noise).rgb*w.z + sampleGround(groundMap3,vGround,noise).rgb*w.w;
       albedo = mix(albedo, sampleGround(groundMap4,vGround,noise).rgb*0.58, vOre * smoothstep(0.38,0.65,gn(floor(vGround*5.0))));
       diffuseColor.rgb *= albedo * mix(0.88,1.08,noise);`);
   };

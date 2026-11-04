@@ -33,16 +33,15 @@ const ORE_TINT = new THREE.Color(0.72, 0.62, 0.56);
 
 /**
  * Level of detail per chunk, from the camera distance to the chunk (strategic view):
- * 0 = instanced nature models; 1 = simplified models merged into one mesh;
- * 2 = same with flat ground tiles.
+ * 0 = near ground; 1 and 2 = progressively coarser ground and nature.
  */
-const LOD_DISTANCES = [55, 85];
+const LOD_DISTANCES = [30, 55];
 /** Distance margin before switching back, so chunks don't flicker between levels. */
 const LOD_HYSTERESIS = 5;
 /** Level changes rebuilt per frame (new chunks are always built at once). */
 const LOD_REBUILDS_PER_FRAME = 3;
 /** Clustering cell of the simplified nature models per level 1, 2 (world units). */
-const LOD_CELLS = [0.25, 0.4];
+const LOD_CELLS = [0.18, 0.3];
 
 /** Ground area to load: axis-aligned bounds in world units. */
 export interface ViewBounds {
@@ -55,6 +54,7 @@ export interface ViewBounds {
 interface Chunk {
   group: THREE.Group;
   lod: number;
+  triangles: Record<'ground' | 'water' | 'trees' | 'rocks' | 'ore', number>;
 }
 
 /**
@@ -107,7 +107,7 @@ export class Terrain {
     fogMaterial(oreMaterial);
     fogMaterial(this.lodMat);
 
-    this.waterMaterial = new THREE.MeshStandardMaterial({ color: 0x668f91, roughness: 0.28, metalness: 0.08 });
+    this.waterMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45, metalness: 0.02, transparent: true, depthWrite: false });
     this.waterMaterial.onBeforeCompile = shader => {
       shader.uniforms.waterTime = this.waterTime;
       shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float depth; varying float vDepth; varying vec2 vWater;');
@@ -117,10 +117,11 @@ export class Terrain {
         float ripple=sin(dot(vWater,vec2(1.3,2.7))+waterTime*0.53)*sin(dot(vWater,vec2(2.6,-1.4))-waterTime*0.38);
         float wave=sin(vWater.x*2.1+waterTime*0.7+ripple)*sin(vWater.y*1.7-waterTime*0.5)*0.5+0.5;
         float deep=smoothstep(0.0,0.35,vDepth);
-        vec3 water=mix(vec3(0.36,0.56,0.53),vec3(0.10,0.26,0.31),deep);
-        float foam=(1.0-smoothstep(0.015,0.11,vDepth))*smoothstep(0.42,0.85,wave);
+        vec3 water=mix(vec3(0.24,0.42,0.37),vec3(0.025,0.17,0.20),deep);
+        float foam=(1.0-smoothstep(0.005,0.035,vDepth))*smoothstep(0.42,0.85,wave);
         float fresnel=pow(1.0-abs(normalize(vViewPosition).z),3.0);
-        diffuseColor.rgb=mix(water,vec3(0.48,0.62,0.65),fresnel*0.35)+wave*0.045+foam*vec3(0.22,0.25,0.22);`);
+        diffuseColor.rgb=mix(water,vec3(0.48,0.62,0.65),fresnel*0.10)+wave*0.012+foam*vec3(0.09,0.10,0.08);
+        diffuseColor.a = mix(0.18, 0.94, smoothstep(0.0, 0.25, vDepth));`);
     };
     fogMaterial(this.waterMaterial);
   }
@@ -178,6 +179,15 @@ export class Terrain {
     return this.chunks.size;
   }
 
+  /** Submitted triangles for currently loaded chunks, grouped by terrain family. */
+  get triangleCounts(): Record<'ground' | 'water' | 'trees' | 'rocks' | 'ore', number> {
+    const totals = { ground: 0, water: 0, trees: 0, rocks: 0, ore: 0 };
+    for (const chunk of this.chunks.values()) {
+      for (const key of Object.keys(totals) as (keyof typeof totals)[]) totals[key] += chunk.triangles[key];
+    }
+    return totals;
+  }
+
   /** Level of detail from the camera distance to the closest point of the chunk. */
   private lodFor(cx: number, cy: number, eye: THREE.Vector3, current = 0): number {
     const cs = this.chunkSize;
@@ -196,7 +206,7 @@ export class Terrain {
     const cs = this.chunkSize;
     const group = new THREE.Group();
     const seed = this.world.seed;
-    const segments = cs * 2;
+    const segments = Math.max(8, Math.round(cs * (lod === 0 ? 1 : lod === 1 ? 0.5 : 0.25)));
     const geometry = new THREE.PlaneGeometry(cs, cs, segments, segments).rotateX(-Math.PI / 2);
     const position = geometry.getAttribute('position');
     const splat: number[] = [], ore: number[] = [], depth: number[] = [];
@@ -210,12 +220,15 @@ export class Terrain {
     geometry.setAttribute('splat', new THREE.Float32BufferAttribute(splat, 4));
     geometry.setAttribute('oreWeight', new THREE.Float32BufferAttribute(ore, 1));
     geometry.computeVertexNormals();
+    addSkirt(geometry, segments);
+    const triangles = { ground: geometry.index!.count / 3, water: 0, trees: 0, rocks: 0, ore: 0 };
     const ground = new THREE.Mesh(geometry, this.groundMat);
     ground.position.set(cx * cs + cs / 2, 0, cy * cs + cs / 2);
     ground.receiveShadow = true;
     group.add(ground);
     if (depth.some(d => d > 0)) {
       const waterGeometry = new THREE.PlaneGeometry(cs, cs, segments, segments).rotateX(-Math.PI / 2);
+      triangles.water = waterGeometry.index!.count / 3;
       waterGeometry.setAttribute('depth', new THREE.Float32BufferAttribute(depth, 1));
       const water = new THREE.Mesh(waterGeometry, this.waterMaterial);
       water.position.set(cx * cs + cs / 2, -0.12, cy * cs + cs / 2);
@@ -235,8 +248,8 @@ export class Terrain {
         const r2 = hash2(tx + 7919, ty - 104729, seed);
         const ox = (r - 0.5) * 0.35;
         const oz = (r2 - 0.5) * 0.35;
-        if (type === 'forest' && r < (lod === 0 ? 0.55 : lod === 1 ? 0.25 : 0.14)) {
-          trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox * 0.35, h, ty + 0.5 + oz * 0.35, r * Math.PI * 2, 0.95 + r2 * 0.1));
+        if (type === 'forest') {
+          trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox * 0.35, h, ty + 0.5 + oz * 0.35, r * Math.PI * 2, 1.7 + r2 * 0.65));
         } else if (type === 'rock' && r < 0.45) {
           rocks[Math.floor(r2 * rocks.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r2 * Math.PI * 2, 0.7 + r * 0.6));
         } else if (type === 'iron') {
@@ -245,28 +258,28 @@ export class Terrain {
       }
     }
 
-    if (lod > 0) {
+    {
       // Far: every tree / rock of the chunk merged into one simplified mesh (1 draw call).
       const white = new THREE.Color(1, 1, 1);
       const entries: MergeEntry[] = [];
       const add = (variants: THREE.BufferGeometry[][], matrices: THREE.Matrix4[][], color: THREE.Color): void =>
         variants.forEach((geos, v) => geos.forEach((geometry) => entries.push({ geometry, matrices: matrices[v], color })));
-      add(this.lodTrees[lod - 1], trees, white);
-      add(this.lodRocks[lod - 1], rocks, white);
-      add(this.lodOres[lod - 1], ores, ORE_TINT);
+      const count = (variants: THREE.BufferGeometry[][], matrices: THREE.Matrix4[][]): number =>
+        variants.reduce((sum, geos, v) => sum + geos.reduce((n, geo) => n + geo.getAttribute('position').count / 3 * matrices[v].length, 0), 0);
+      triangles.trees = count(this.lodTrees[Math.max(0, lod - 1)], trees);
+      triangles.rocks = count(this.lodRocks[Math.max(0, lod - 1)], rocks);
+      triangles.ore = count(this.lodOres[Math.max(0, lod - 1)], ores);
+      add(this.lodTrees[Math.max(0, lod - 1)], trees, white);
+      add(this.lodRocks[Math.max(0, lod - 1)], rocks, white);
+      add(this.lodOres[Math.max(0, lod - 1)], ores, ORE_TINT);
       const merged = mergePlaced(entries);
       if (merged) {
         const mesh = new THREE.Mesh(merged, this.lodMat);
         mesh.receiveShadow = true;
         group.add(mesh);
       }
-      return { group, lod };
+      return { group, lod, triangles };
     }
-    // Trees don't cast shadows: they are the most numerous objects (big mobile GPU saving).
-    addInstances(group, this.treeParts, trees, false);
-    addInstances(group, this.rockParts, rocks, false);
-    addInstances(group, this.oreParts, ores, false);
-    return { group, lod };
   }
 
   private disposeChunk(chunk: Chunk): void {
@@ -283,24 +296,26 @@ function placement(x: number, y: number, z: number, rotY: number, scale: number)
   return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(scale, scale, scale));
 }
 
-function addInstances(group: THREE.Group, variants: MeshPart[][], matrices: THREE.Matrix4[][], castShadow: boolean): void {
-  variants.forEach((parts, v) => {
-    const list = matrices[v];
-    if (list.length === 0) return;
-    for (const part of parts) {
-      const mesh = new THREE.InstancedMesh(part.geometry, part.material, list.length);
-      const tint = new THREE.Color();
-      list.forEach((mat, i) => {
-        mesh.setMatrixAt(i, mat);
-        const variation = 0.87 + hash2(Math.round(mat.elements[12] * 10), Math.round(mat.elements[14] * 10), 73) * 0.20;
-        mesh.setColorAt(i, tint.setRGB(variation, variation * 1.015, variation * 0.96));
-      });
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.castShadow = castShadow;
-      mesh.receiveShadow = true;
-      mesh.computeBoundingSphere();
-      group.add(mesh);
+/** Lower the chunk perimeter to hide cracks between different ground resolutions. */
+function addSkirt(geometry: THREE.BufferGeometry, segments: number): void {
+  const index = Array.from(geometry.index!.array);
+  const edge: number[] = [];
+  for (let x = 0; x <= segments; x++) edge.push(x);
+  for (let y = 1; y <= segments; y++) edge.push(y * (segments + 1) + segments);
+  for (let x = segments - 1; x >= 0; x--) edge.push(segments * (segments + 1) + x);
+  for (let y = segments - 1; y > 0; y--) edge.push(y * (segments + 1));
+  const base = geometry.getAttribute('position').count;
+  for (const name of ['position', 'normal', 'uv', 'splat', 'oreWeight']) {
+    const attr = geometry.getAttribute(name);
+    const values = Array.from(attr.array as ArrayLike<number>);
+    for (const i of edge) for (let c = 0; c < attr.itemSize; c++) {
+      values.push(attr.getComponent(i, c) - (name === 'position' && c === 1 ? 0.35 : 0));
     }
+    geometry.setAttribute(name, new THREE.Float32BufferAttribute(values, attr.itemSize));
+  }
+  edge.forEach((v, i) => {
+    const j = (i + 1) % edge.length;
+    index.push(v, base + i, edge[j], edge[j], base + i, base + j);
   });
+  geometry.setIndex(index);
 }

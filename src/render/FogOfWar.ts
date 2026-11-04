@@ -35,10 +35,12 @@ varying vec2 vFowWorld;`;
 const FRAGMENT_MAIN = /* glsl */ `#include <opaque_fragment>
 float fowM = texture2D( fowMask, ( vFowWorld - fowRect.xy ) * fowRect.zw ).r;
 float fowL = dot( gl_FragColor.rgb, vec3( 0.299, 0.587, 0.114 ) );
-vec3 fowDark = vec3( 0.09, 0.10, 0.13 ) + fowL * 0.10;
-vec3 fowGrey = mix( gl_FragColor.rgb, vec3( fowL ), 0.15 ) * 0.9;
+float grain = fract(sin(dot(floor(vFowWorld * 4.0), vec2(127.1, 311.7))) * 43758.5453);
+vec3 fowDark = vec3( 0.035, 0.047, 0.065 ) + (grain - 0.5) * 0.008;
+vec3 fowGrey = gl_FragColor.rgb;
 vec3 fowOut = mix( fowDark, fowGrey, smoothstep( 0.0, 0.5, fowM ) );
-gl_FragColor.rgb = mix( fowOut, gl_FragColor.rgb, smoothstep( 0.5, 1.0, fowM ) );`;
+gl_FragColor.rgb = mix( fowOut, gl_FragColor.rgb, smoothstep( 0.5, 1.0, fowM ) );
+gl_FragColor.a = mix( 1.0, gl_FragColor.a, smoothstep( 0.0, 0.5, fowM ) );`;
 
 function patchShader(shader: THREE.WebGLProgramParametersWithUniforms): void {
   shader.uniforms.fowMask = uniforms.fowMask;
