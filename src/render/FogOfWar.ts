@@ -31,12 +31,12 @@ uniform sampler2D fowMask;
 uniform vec4 fowRect;
 varying vec2 vFowWorld;`;
 
-/** Unknown = dark slate with a hint of relief; explored = desaturated and dimmed. */
+/** Unknown = dark slate with a hint of relief; explored stays clear, just slightly dimmed. */
 const FRAGMENT_MAIN = /* glsl */ `#include <opaque_fragment>
 float fowM = texture2D( fowMask, ( vFowWorld - fowRect.xy ) * fowRect.zw ).r;
 float fowL = dot( gl_FragColor.rgb, vec3( 0.299, 0.587, 0.114 ) );
 vec3 fowDark = vec3( 0.09, 0.10, 0.13 ) + fowL * 0.10;
-vec3 fowGrey = mix( gl_FragColor.rgb, vec3( fowL ), 0.7 ) * 0.58 + vec3( 0.02, 0.03, 0.05 );
+vec3 fowGrey = mix( gl_FragColor.rgb, vec3( fowL ), 0.15 ) * 0.9;
 vec3 fowOut = mix( fowDark, fowGrey, smoothstep( 0.0, 0.5, fowM ) );
 gl_FragColor.rgb = mix( fowOut, gl_FragColor.rgb, smoothstep( 0.5, 1.0, fowM ) );`;
 

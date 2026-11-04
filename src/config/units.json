@@ -18,7 +18,7 @@
     "trainTimeMs": 22000
   },
   "knight": {
-    "name": "Chevalier (\u00e9p\u00e9e)",
+    "name": "Chevalier (épée)",
     "hp": 150,
     "attack": 14,
     "range": 1,
@@ -42,7 +42,7 @@
     "name": "Villageois",
     "hp": 50,
     "speed": 1.8,
-    "vision": 3,
+    "vision": 5,
     "carryCapacity": 10,
     "gatherPerSecond": 0.5,
     "workMs": 3000,

@@ -12,7 +12,7 @@ Carte finie générée par seed : `map.halfSize` = 120, soit **240 × 240 tuiles
 
 Le joueur commence en (0,0), les cinq IA sur un cercle de rayon `aiSpawnRadius`, avec angles espacés et jitter, sur terrain constructible. Une zone 5 × 5 autour de chaque hôtel de ville est dégagée. La génération garantit à chaque village des ressources initiales accessibles : au moins 6 tuiles de baies, 6 animaux, 20 tuiles de forêt, 6 de pierre et 6 de fer à distance praticable, sans partager ces minima avec un autre village. Les ressources de départ doivent permettre de construire et de passer au deuxième âge ; la seed reste déterministe.
 
-Brouillard de guerre : seules les tuiles dans la vision actuelle des unités et bâtiments alliés au joueur sont visibles ; celles déjà explorées restent grisées, les autres inconnues. Les unités révèlent leur environnement en se déplaçant ; les bâtiments révèlent leur rayon `vision`. Aucun rayon d’exploration automatique lié à la production. La mini-carte couvre toute la carte.
+Brouillard de guerre : seules les tuiles dans la vision actuelle des unités et bâtiments alliés au joueur sont visibles ; une zone traversée est découverte pour de bon : elle reste claire (à peine atténuée, les ennemis n’y sont plus visibles), les zones jamais vues restent sombres. Un villageois voit à 5 tuiles. Les unités révèlent leur environnement en se déplaçant ; les bâtiments révèlent leur rayon `vision`. Aucun rayon d’exploration automatique lié à la production. La mini-carte couvre toute la carte.
 
 ## 3. Ressources et récolte
 
