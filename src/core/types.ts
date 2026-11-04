@@ -125,6 +125,8 @@ export interface Village {
   allies: string[];
   /** Relation score per village id, -1..1. */
   relations: Record<string, number>;
+  /** Enemy villages whose town halls have been discovered. */
+  knownVillages?: string[];
   /** Last attack suffered (CombatSystem): resting warriors nearby come out to defend. */
   alarm?: { x: number; y: number; untilMs: number } | null;
 }

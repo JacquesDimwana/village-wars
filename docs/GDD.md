@@ -143,6 +143,8 @@ Machine à états évaluée toutes les 2 s par village, soumise aux mêmes coût
 
 Personnalités `src/config/ai.json` : agressive (caserne tôt, seuil d’attaque bas, alliances rares), économe (production et armée importantes avant attaque), diplomate (alliances et dons fréquents, aucune attaque contre un allié). Puissance = somme des PV × attaque des soldats.
 
+Simulation automatique (seed 42, six villages, joueur passif, pas logique de 100 ms, 15 min simulées) : premier âge II à **6 min 54 s**, première attaque ordonnée à **8 min 00 s** ; maximum observé de 12 villageois dans un village IA et 77 soldats IA au total. Temps moyen mesuré : **2,05 ms par tick** sur la machine de test. La simulation poursuit les systèmes après la défaite du joueur afin de couvrir les 15 minutes ; en jeu, la boucle s’arrête à la fin de partie.
+
 ## 11. Diplomatie et fin
 
 Vers chaque village IA découvert : proposer une alliance (acceptée si `baseAcceptance[personnalité] + (ta puissance / sa puissance) × 0,3 − relationsNégatives > 0,5`), envoyer des ressources par convoi pour améliorer la relation, demander des ressources à un allié disposant de plus de deux fois ses besoins, demander 30 % de son armée en renfort, ou rompre l’alliance. Les alliés ne s’attaquent pas.

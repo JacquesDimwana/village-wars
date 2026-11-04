@@ -68,6 +68,14 @@ export const UNITS = unitDefs as unknown as Record<UnitType, UnitDef>;
 
 export const AI = aiJson as unknown as {
   thinkIntervalMs: number;
+  discoveryDelayMs: number;
+  scoutStartMs: number;
+  attackStartMs: number;
+  ageOneArmyLimit: number;
+  minimumAttackUnits: number;
+  diplomacyIntervalMs: number;
+  depotDistance: number;
+  resourceRatios: Record<1 | 2 | 3, Record<ResourceType, number>>;
   workerTarget: number;
   sourceCandidates: number;
   /** AI keeps at least this many civilians working before converting warriors. */

@@ -85,5 +85,32 @@
     "wood": 4,
     "stone": 1,
     "iron": 1
-  }
+  },
+  "discoveryDelayMs": 480000,
+  "scoutStartMs": 180000,
+  "attackStartMs": 480000,
+  "diplomacyIntervalMs": 120000,
+  "depotDistance": 8,
+  "resourceRatios": {
+    "1": {
+      "food": 0.6,
+      "wood": 0.3,
+      "stone": 0.1,
+      "iron": 0
+    },
+    "2": {
+      "food": 0.5,
+      "wood": 0.25,
+      "stone": 0.1,
+      "iron": 0.15
+    },
+    "3": {
+      "food": 0.45,
+      "wood": 0.2,
+      "stone": 0.1,
+      "iron": 0.25
+    }
+  },
+  "ageOneArmyLimit": 3,
+  "minimumAttackUnits": 4
 }
