@@ -1,4 +1,5 @@
 import { fogMaterial } from './FogOfWar';
+import { groundHeight, groundWeights, groundMaterial } from './GroundSurface';
 import * as THREE from 'three';
 import { GAME } from '../core/config';
 import { hash2 } from '../core/rng';
@@ -41,7 +42,7 @@ const LOD_HYSTERESIS = 5;
 /** Level changes rebuilt per frame (new chunks are always built at once). */
 const LOD_REBUILDS_PER_FRAME = 3;
 /** Clustering cell of the simplified nature models per level 1, 2 (world units). */
-const LOD_CELLS = [0.18, 0.3];
+const LOD_CELLS = [0.25, 0.4];
 
 /** Ground area to load: axis-aligned bounds in world units. */
 export interface ViewBounds {
@@ -63,15 +64,15 @@ interface Chunk {
 export class Terrain {
   readonly root = new THREE.Group();
   private chunks = new Map<string, Chunk>();
-  private box = new THREE.BoxGeometry(1, 1, 1);
-  private groundMat = fogMaterial(new THREE.MeshLambertMaterial({ color: 0xffffff }));
+  private groundMat = fogMaterial(groundMaterial());
   private treeParts: MeshPart[][];
   private rockParts: MeshPart[][];
   private oreParts: MeshPart[][];
-  private water: THREE.Mesh;
+  private waterMaterial: THREE.MeshStandardMaterial;
+  private waterTime = { value: 0 };
   private depleted = new Set<string>();
   /** Flat top-face tile for far ground (2 triangles instead of 12). */
-  private quad = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+
   /** Simplified models per level: [level - 1][variant][part]. */
   private lodTrees: THREE.BufferGeometry[][][];
   private lodRocks: THREE.BufferGeometry[][][];
@@ -106,14 +107,22 @@ export class Terrain {
     fogMaterial(oreMaterial);
     fogMaterial(this.lodMat);
 
-    // One big translucent water plane following the camera.
-    this.water = new THREE.Mesh(
-      new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
-      fogMaterial(new THREE.MeshLambertMaterial({ color: 0x557e84, transparent: true, opacity: 0.82 })),
-    );
-    this.water.position.y = -0.12;
-    this.water.receiveShadow = true;
-    this.root.add(this.water);
+    this.waterMaterial = new THREE.MeshStandardMaterial({ color: 0x668f91, roughness: 0.28, metalness: 0.08 });
+    this.waterMaterial.onBeforeCompile = shader => {
+      shader.uniforms.waterTime = this.waterTime;
+      shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute float depth; varying float vDepth; varying vec2 vWater;');
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvDepth=depth; vWater=(modelMatrix*vec4(position,1.0)).xz;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nuniform float waterTime; varying float vDepth; varying vec2 vWater;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+        float ripple=sin(dot(vWater,vec2(1.3,2.7))+waterTime*0.53)*sin(dot(vWater,vec2(2.6,-1.4))-waterTime*0.38);
+        float wave=sin(vWater.x*2.1+waterTime*0.7+ripple)*sin(vWater.y*1.7-waterTime*0.5)*0.5+0.5;
+        float deep=smoothstep(0.0,0.35,vDepth);
+        vec3 water=mix(vec3(0.36,0.56,0.53),vec3(0.10,0.26,0.31),deep);
+        float foam=(1.0-smoothstep(0.015,0.11,vDepth))*smoothstep(0.42,0.85,wave);
+        float fresnel=pow(1.0-abs(normalize(vViewPosition).z),3.0);
+        diffuseColor.rgb=mix(water,vec3(0.48,0.62,0.65),fresnel*0.35)+wave*0.045+foam*vec3(0.22,0.25,0.22);`);
+    };
+    fogMaterial(this.waterMaterial);
   }
 
   /**
@@ -126,12 +135,14 @@ export class Terrain {
       if (amount > 0 || this.depleted.has(key)) continue;
       this.depleted.add(key);
       const [x, y] = key.split(',').map(Number);
-      const chunkKey = `${Math.floor(x / this.chunkSize)},${Math.floor(y / this.chunkSize)}`;
-      const chunk = this.chunks.get(chunkKey);
-      if (chunk) { this.disposeChunk(chunk); this.chunks.delete(chunkKey); }
+      // The blended surface samples adjacent tiles, including across chunk boundaries.
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+        const chunkKey = `${Math.floor((x + dx) / this.chunkSize)},${Math.floor((y + dz) / this.chunkSize)}`;
+        const chunk = this.chunks.get(chunkKey);
+        if (chunk) { this.disposeChunk(chunk); this.chunks.delete(chunkKey); }
+      }
     }
-    this.water.position.x = focus.x;
-    this.water.position.z = focus.z;
+    this.waterTime.value = performance.now() * 0.001;
     const cs = this.chunkSize;
     const limit = GAME.map.halfSize + GAME.map.borderWidth;
     const minCx = Math.floor(Math.max(-limit, focus.x - radius, view?.minX ?? -Infinity) / cs);
@@ -184,37 +195,47 @@ export class Terrain {
   private buildChunk(state: GameState, cx: number, cy: number, lod: number): Chunk {
     const cs = this.chunkSize;
     const group = new THREE.Group();
-    const flat = lod >= 2;
-    const ground = new THREE.InstancedMesh(flat ? this.quad : this.box, this.groundMat, cs * cs);
-    ground.receiveShadow = true;
-    const m = new THREE.Matrix4();
-    const color = new THREE.Color();
     const seed = this.world.seed;
-
+    const segments = cs * 2;
+    const geometry = new THREE.PlaneGeometry(cs, cs, segments, segments).rotateX(-Math.PI / 2);
+    const position = geometry.getAttribute('position');
+    const splat: number[] = [], ore: number[] = [], depth: number[] = [];
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i) + cx * cs + cs / 2, z = position.getZ(i) + cy * cs + cs / 2;
+      const w = groundWeights(x, z, (tx, tz) => currentTile(state, this.world, tx, tz));
+      const h = groundHeight(this.world, x, z);
+      position.setY(i, h);
+      splat.push(w[0], w[1], w[2] + w[5], w[3] + w[4]); ore.push(w[4]); depth.push(-0.12 - h);
+    }
+    geometry.setAttribute('splat', new THREE.Float32BufferAttribute(splat, 4));
+    geometry.setAttribute('oreWeight', new THREE.Float32BufferAttribute(ore, 1));
+    geometry.computeVertexNormals();
+    const ground = new THREE.Mesh(geometry, this.groundMat);
+    ground.position.set(cx * cs + cs / 2, 0, cy * cs + cs / 2);
+    ground.receiveShadow = true;
+    group.add(ground);
+    if (depth.some(d => d > 0)) {
+      const waterGeometry = new THREE.PlaneGeometry(cs, cs, segments, segments).rotateX(-Math.PI / 2);
+      waterGeometry.setAttribute('depth', new THREE.Float32BufferAttribute(depth, 1));
+      const water = new THREE.Mesh(waterGeometry, this.waterMaterial);
+      water.position.set(cx * cs + cs / 2, -0.12, cy * cs + cs / 2);
+      group.add(water);
+    }
     const trees: THREE.Matrix4[][] = this.treeParts.map(() => []);
     const rocks: THREE.Matrix4[][] = this.rockParts.map(() => []);
     const ores: THREE.Matrix4[][] = this.oreParts.map(() => []);
 
-    let i = 0;
     for (let y = 0; y < cs; y++) {
       for (let x = 0; x < cs; x++) {
         const tx = cx * cs + x;
         const ty = cy * cs + y;
         const type = currentTile(state, this.world, tx, ty);
-        const h = TILE_HEIGHT[type];
+        const h = groundHeight(this.world, tx + 0.5, ty + 0.5);
         const r = hash2(tx, ty, seed);
-        // Box from y=-1 to y=h so tiles never show gaps (far: top face only).
-        if (flat) m.makeTranslation(tx + 0.5, h, ty + 0.5);
-        else m.makeScale(1, h + 1, 1).setPosition(tx + 0.5, (h - 1) / 2, ty + 0.5);
-        ground.setMatrixAt(i, m);
-        color.setHex(TILE_COLOR[type]).multiplyScalar(0.94 + r * 0.12);
-        ground.setColorAt(i, color);
-        i++;
-
         const r2 = hash2(tx + 7919, ty - 104729, seed);
         const ox = (r - 0.5) * 0.35;
         const oz = (r2 - 0.5) * 0.35;
-        if (type === 'forest') {
+        if (type === 'forest' && r < (lod === 0 ? 0.55 : lod === 1 ? 0.25 : 0.14)) {
           trees[Math.floor(r2 * trees.length)].push(placement(tx + 0.5 + ox * 0.35, h, ty + 0.5 + oz * 0.35, r * Math.PI * 2, 0.95 + r2 * 0.1));
         } else if (type === 'rock' && r < 0.45) {
           rocks[Math.floor(r2 * rocks.length)].push(placement(tx + 0.5 + ox, h, ty + 0.5 + oz, r2 * Math.PI * 2, 0.7 + r * 0.6));
@@ -223,10 +244,6 @@ export class Terrain {
         }
       }
     }
-    ground.instanceMatrix.needsUpdate = true;
-    ground.computeBoundingSphere();
-    if (ground.instanceColor) ground.instanceColor.needsUpdate = true;
-    group.add(ground);
 
     if (lod > 0) {
       // Far: every tree / rock of the chunk merged into one simplified mesh (1 draw call).
@@ -272,7 +289,13 @@ function addInstances(group: THREE.Group, variants: MeshPart[][], matrices: THRE
     if (list.length === 0) return;
     for (const part of parts) {
       const mesh = new THREE.InstancedMesh(part.geometry, part.material, list.length);
-      list.forEach((mat, i) => mesh.setMatrixAt(i, mat));
+      const tint = new THREE.Color();
+      list.forEach((mat, i) => {
+        mesh.setMatrixAt(i, mat);
+        const variation = 0.87 + hash2(Math.round(mat.elements[12] * 10), Math.round(mat.elements[14] * 10), 73) * 0.20;
+        mesh.setColorAt(i, tint.setRGB(variation, variation * 1.015, variation * 0.96));
+      });
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.instanceMatrix.needsUpdate = true;
       mesh.castShadow = castShadow;
       mesh.receiveShadow = true;

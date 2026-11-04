@@ -31,7 +31,7 @@ export class EntityRenderer {
   /** Same plane with its origin on the left edge, so scaling x shrinks it from the right. */
   private fillGeo = new THREE.PlaneGeometry(1, 0.08).translate(0.5, 0, 0);
 
-  constructor(private assets: Assets) {}
+  constructor(private assets: Assets, private heightAt: (x: number, z: number) => number) {}
 
   sync(state: GameState): void {
     this.syncBuildings(state);
@@ -82,7 +82,7 @@ export class EntityRenderer {
   private createBuilding(b: Building, completed: boolean): BuildingView {
     const size = BUILDINGS[b.type].size;
     const root = new THREE.Group();
-    root.position.set(b.tx + size / 2, 0, b.ty + size / 2);
+    root.position.set(b.tx + size / 2, this.heightAt(b.tx + size / 2, b.ty + size / 2), b.ty + size / 2);
     root.userData.buildingId = b.id;
     root.userData.ownerId = b.ownerId;
     const model = this.buildingModel(b, completed);

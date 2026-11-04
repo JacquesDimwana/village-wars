@@ -4,6 +4,7 @@ import type { GameState, Villager } from '../core/types';
 import { isVisible } from '../systems/FogSystem';
 import { isResourceTile, tileRemaining } from '../systems/GatherSystem';
 import type { WorldGen } from '../world/WorldGen';
+import { groundHeight } from './GroundSurface';
 
 export const resourceRatio = (remaining: number, initial: number): number =>
   initial > 0 ? Math.max(0, Math.min(1, remaining / initial)) : 0;
@@ -74,7 +75,7 @@ export class ResourceBars {
       const ratio = resourceRatio(remaining, initial);
       if (ratio <= 0 || count >= 2048) continue;
       const height = food ? 1.15 : tile === 'forest' ? 2.6 : 1.35;
-      pos.set(tx + 0.5, height, ty + 0.5);
+      pos.set(tx + 0.5, height + groundHeight(world, tx + 0.5, ty + 0.5), ty + 0.5);
       matrix.compose(pos, rotation, scale.set(0.85, 0.13, 1)); this.background.setMatrixAt(count, matrix);
       const offset = new THREE.Vector3((ratio - 1) * 0.39, 0, 0.01).applyQuaternion(rotation);
       matrix.compose(pos.add(offset), rotation, scale.set(0.78 * ratio, 0.08, 1)); this.fill.setMatrixAt(count, matrix);
@@ -89,7 +90,7 @@ export class ResourceBars {
     for (const p of this.particles) {
       if (!isVisible(state.fog, p.tx, p.ty) || n >= 2048) continue;
       const angle = p.index * Math.PI / 4, t = p.age;
-      pos.set(p.tx + 0.5 + Math.cos(angle) * t * 0.8, 0.4 + t * 2 - 3 * t * t, p.ty + 0.5 + Math.sin(angle) * t * 0.8);
+      pos.set(p.tx + 0.5 + Math.cos(angle) * t * 0.8, groundHeight(world, p.tx + 0.5, p.ty + 0.5) + 0.4 + t * 2 - 3 * t * t, p.ty + 0.5 + Math.sin(angle) * t * 0.8);
       matrix.makeTranslation(pos.x, pos.y, pos.z); this.fragments.setMatrixAt(n, matrix);
       this.fragments.setColorAt(n++, color.setHex(p.color));
     }

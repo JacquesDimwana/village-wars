@@ -57,7 +57,8 @@ const patched = new WeakSet<THREE.Material>();
 export function fogMaterial<T extends THREE.Material>(material: T): T {
   if (patched.has(material)) return material;
   patched.add(material);
-  material.onBeforeCompile = patchShader;
+  const previous = material.onBeforeCompile.bind(material);
+  material.onBeforeCompile = (shader, renderer) => { previous(shader, renderer); patchShader(shader); };
   return material;
 }
 

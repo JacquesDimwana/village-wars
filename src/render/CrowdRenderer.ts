@@ -25,11 +25,11 @@ import { isVisible } from '../systems/FogSystem';
 import * as THREE from 'three';
 import { VILLAGER } from '../core/config';
 import { PLAYER_ID } from '../core/constants';
-import type { GameState, ResourceType, TileType } from '../core/types';
+import type { GameState, ResourceType } from '../core/types';
 import { drawnUnitIds } from '../systems/ArmySystem';
 import { buildingCenter, resolveTarget } from '../systems/CombatSystem';
 import type { Assets, CrowdModelKind } from './Assets';
-import { TILE_HEIGHT } from './Terrain';
+
 import { teamStyle } from './teams';
 import type { CrowdClip, VatModel } from './VatBaker';
 
@@ -214,7 +214,7 @@ export class CrowdRenderer {
 
   constructor(
     assets: Assets,
-    private tileAt: (tx: number, ty: number) => TileType,
+    private heightAt: (x: number, z: number) => number,
   ) {
     this.root.name = 'crowd';
     this.batches = {
@@ -324,7 +324,7 @@ export class CrowdRenderer {
 
   /** Top of the tile under a mover (rock / iron tiles are raised). */
   private ground(x: number, y: number): number {
-    return Math.max(0, TILE_HEIGHT[this.tileAt(Math.floor(x + 0.5), Math.floor(y + 0.5))]);
+    return this.heightAt(x + 0.5, y + 0.5);
   }
 
   /** Remembers the last position to face the walking direction, or `face` when fighting (display state only). */

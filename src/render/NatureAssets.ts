@@ -48,25 +48,7 @@ export function prepareNature(parts: MeshPart[], material: THREE.Material, tree:
     if (!merged) throw new Error('Could not merge nature geometry');
     return merged;
   };
-  if (tree) {
-    const pine = parts.some((part) => part.material.name === 'Leaves_Pine');
-    const trunk = new THREE.CylinderGeometry(0.055, 0.08, 0.42, 6, 1).translate(0, 0.21, 0);
-    const canopy = pine
-      ? new THREE.ConeGeometry(0.53, 0.95, 8, 1).translate(0, 0.72, 0)
-      : new THREE.IcosahedronGeometry(0.53, 1).scale(1, 0.8, 1).translate(0, 0.75, 0);
-    const swatch = (geometry: THREE.BufferGeometry, x: number): THREE.BufferGeometry => {
-      const g = geometry.index ? geometry.toNonIndexed() : geometry;
-      if (g !== geometry) geometry.dispose();
-      const uv = g.getAttribute('uv');
-      for (let i = 0; i < uv.count; i++) uv.setXY(i, x / 1024, 1022 / 1024);
-      return g;
-    };
-    const geometries = [swatch(trunk, 1018), swatch(canopy, pine ? 1014 : 1010)];
-    const geometry = mergeGeometries(geometries);
-    geometries.forEach((g) => g.dispose());
-    if (!geometry) throw new Error('Could not merge tree geometry');
-    return [{ geometry, material }];
-  }
+  if (tree) return [{ geometry: build(0.045), material }];
   let cell = 0.02;
   let geometry = build(cell);
   while (geometry.getAttribute('position').count / 3 > 150 && cell < 1) {

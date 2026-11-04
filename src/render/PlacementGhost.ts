@@ -38,6 +38,7 @@ export class PlacementGhost {
     private cam: RtsCamera,
     private canvas: HTMLCanvasElement,
     private check: (type: BuildingType, tx: number, ty: number) => PlaceCheck,
+    private heightAt: (x: number, z: number) => number,
   ) {
     this.root.visible = false;
     this.tiles.renderOrder = 5;
@@ -101,7 +102,8 @@ export class PlacementGhost {
   moveTo(tx: number, ty: number): void {
     this.tx = tx;
     this.ty = ty;
-    this.root.position.set(tx, 0, ty);
+    const size = this.type ? BUILDINGS[this.type].size : 1;
+    this.root.position.set(tx, this.heightAt(tx + size / 2, ty + size / 2), ty);
   }
 
   /** A tap on the map moves the ghost so it is centered on the tapped tile. */

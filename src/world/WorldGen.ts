@@ -35,6 +35,12 @@ export class WorldGen {
     this.spawns = this.computeSpawns(aiCount, rng);
   }
 
+  /** Gentle visual relief, shared by the terrain and its occupants. */
+  visualHeight(x: number, z: number): number {
+    return this.elevation(x * 0.025, z * 0.025) * 0.07
+      + this.elevation(x * 0.08, z * 0.08) * 0.025;
+  }
+
   /** Terrain at a tile, including the forced clearings around town halls. */
   getTile(tx: number, ty: number): TileType {
     if (Math.max(Math.abs(tx), Math.abs(ty)) > GAME.map.halfSize) return 'water';

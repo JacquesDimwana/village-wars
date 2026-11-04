@@ -16,6 +16,7 @@ import { CrowdRenderer } from './render/CrowdRenderer';
 import { EntityRenderer } from './render/EntityRenderer';
 import { PlacementGhost } from './render/PlacementGhost';
 import { Terrain, type ViewBounds } from './render/Terrain';
+import { groundHeight } from './render/GroundSurface';
 import { ProgressionSystem, queueAge, queueResearch, cancelResearch } from './systems/ProgressionSystem';
 import { TrainingSystem, queueTraining, cancelTraining } from './systems/TrainingSystem';
 import { ConstructionSystem, canPlace, placeBuilding, upgradeBuilding, orderBuildingWork, cancelConstruction } from './systems/ConstructionSystem';
@@ -49,7 +50,7 @@ export class Game {
   speed = 1;
   paused = false;
   readonly renderer: THREE.WebGLRenderer;
-  private foodSources = new FoodSources();
+  private foodSources = new FoodSources((x, z) => groundHeight(this.world, x, z));
   private resourceBars = new ResourceBars();
   readonly scene = new THREE.Scene();
   readonly cam: RtsCamera;
@@ -101,10 +102,18 @@ export class Game {
     this.renderer.toneMappingExposure = 1.15;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(this.renderer.domElement);
 
-    this.scene.background = new THREE.Color(SKY);
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 2; skyCanvas.height = 256;
+    const skyContext = skyCanvas.getContext('2d');
+    if (skyContext) {
+      const gradient = skyContext.createLinearGradient(0, 0, 0, 256);
+      gradient.addColorStop(0, '#829da9'); gradient.addColorStop(1, '#d1d5c8');
+      skyContext.fillStyle = gradient; skyContext.fillRect(0, 0, 2, 256);
+      this.scene.background = new THREE.CanvasTexture(skyCanvas);
+    } else this.scene.background = new THREE.Color(SKY);
     this.scene.fog = new THREE.Fog(SKY, 55, 110);
 
     this.scene.add(new THREE.HemisphereLight(0xc5d7e4, 0x9a927c, 1.25));
@@ -127,10 +136,11 @@ export class Game {
       ...GAME.camera, bounds: { minX: -mapHalf, maxX: mapHalf, minZ: -mapHalf, maxZ: mapHalf },
     });
     this.terrain = new Terrain(this.world, assets, GAME.chunkSize);
-    this.entities = new EntityRenderer(assets);
-    this.crowd = new CrowdRenderer(assets, (tx, ty) => this.world.getTile(tx, ty));
+    this.entities = new EntityRenderer(assets, (x, z) => groundHeight(this.world, x, z));
+    this.crowd = new CrowdRenderer(assets, (x, z) => groundHeight(this.world, x, z));
     this.placement = new PlacementGhost(assets, this.cam, this.renderer.domElement, (type, tx, ty) =>
       canPlace(this.state, this.world, type, tx, ty, PLAYER_ID),
+      (x, z) => groundHeight(this.world, x, z),
     );
     this.placementBar = new PlacementBar(() => this.confirmPlacement(), () => this.stopPlacement());
     this.scene.add(this.resourceBars.root, this.foodSources.root, this.terrain.root, this.entities.root, this.crowd.root, this.placement.root);
