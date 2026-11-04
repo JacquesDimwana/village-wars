@@ -9,6 +9,7 @@ import type { WorldGen } from '../world/WorldGen';
 import { NATURE, type Assets, type MeshPart } from './Assets';
 import { mergePlaced, simplifyStatic, type MergeEntry } from './TerrainLod';
 import { natureMaterial, oreVeins, prepareNature } from './NatureAssets';
+import { treeCards } from './TreeCards';
 
 /** Top height of each tile type (world units, 1 tile = 1 unit). */
 export const TILE_HEIGHT: Record<TileType, number> = {
@@ -65,7 +66,7 @@ export class Terrain {
   readonly root = new THREE.Group();
   private chunks = new Map<string, Chunk>();
   private groundMat = fogMaterial(groundMaterial());
-  private treeParts: MeshPart[][];
+  private trees: ReturnType<typeof treeCards>[];
   private rockParts: MeshPart[][];
   private oreParts: MeshPart[][];
   private waterMaterial: THREE.MeshStandardMaterial;
@@ -74,7 +75,6 @@ export class Terrain {
   /** Flat top-face tile for far ground (2 triangles instead of 12). */
 
   /** Simplified models per level: [level - 1][variant][part]. */
-  private lodTrees: THREE.BufferGeometry[][][];
   private lodRocks: THREE.BufferGeometry[][][];
   private lodOres: THREE.BufferGeometry[][][];
   private lodMat: THREE.MeshStandardMaterial;
@@ -87,7 +87,8 @@ export class Terrain {
     const rawTrees = NATURE.trees.map((n) => assets.parts(n, 0.75));
     const rawRocks = NATURE.rocks.map((n) => assets.parts(n, 0.7));
     const material = natureMaterial([...rawTrees, ...rawRocks]);
-    this.treeParts = rawTrees.map((parts) => prepareNature(parts, material, true));
+    this.trees = rawTrees.map((parts, i) => treeCards(parts, i === 1));
+    this.trees.forEach(tree => fogMaterial(tree.material));
     this.rockParts = rawRocks.map((parts) => prepareNature(parts, material, false));
     [...rawTrees, ...rawRocks].flat().forEach((part) => part.geometry.dispose());
     const oreMaterial = material.clone();
@@ -98,7 +99,6 @@ export class Terrain {
 
     const simplified = (variants: MeshPart[][], cell: number): THREE.BufferGeometry[][] =>
       variants.map((parts) => parts.map((p) => simplifyStatic(p.geometry, cell)));
-    this.lodTrees = LOD_CELLS.map((c) => simplified(this.treeParts, c));
     this.lodRocks = LOD_CELLS.map((c) => simplified(this.rockParts, c * 0.6));
     this.lodOres = this.lodRocks.map((variants) => variants.map((parts) => parts.map(oreVeins)));
     this.lodMat = material.clone();
@@ -234,7 +234,7 @@ export class Terrain {
       water.position.set(cx * cs + cs / 2, -0.12, cy * cs + cs / 2);
       group.add(water);
     }
-    const trees: THREE.Matrix4[][] = this.treeParts.map(() => []);
+    const trees: THREE.Matrix4[][] = this.trees.map(() => []);
     const rocks: THREE.Matrix4[][] = this.rockParts.map(() => []);
     const ores: THREE.Matrix4[][] = this.oreParts.map(() => []);
 
@@ -266,10 +266,22 @@ export class Terrain {
         variants.forEach((geos, v) => geos.forEach((geometry) => entries.push({ geometry, matrices: matrices[v], color })));
       const count = (variants: THREE.BufferGeometry[][], matrices: THREE.Matrix4[][]): number =>
         variants.reduce((sum, geos, v) => sum + geos.reduce((n, geo) => n + geo.getAttribute('position').count / 3 * matrices[v].length, 0), 0);
-      triangles.trees = count(this.lodTrees[Math.max(0, lod - 1)], trees);
+      this.trees.forEach((tree, variant) => {
+        const matrices = trees[variant];
+        if (!matrices.length) return;
+        const geometry = tree.levels[lod];
+        const mesh = new THREE.InstancedMesh(geometry, tree.material, matrices.length);
+        matrices.forEach((matrix, i) => {
+          mesh.setMatrixAt(i, matrix);
+          const tint = 0.88 + hash2(Math.round(matrix.elements[12] * 10), Math.round(matrix.elements[14] * 10), seed) * 0.12;
+          mesh.setColorAt(i, new THREE.Color(tint, tint, tint));
+        });
+        mesh.computeBoundingSphere();
+        group.add(mesh);
+        triangles.trees += (geometry.index?.count ?? geometry.getAttribute('position').count) / 3 * matrices.length;
+      });
       triangles.rocks = count(this.lodRocks[Math.max(0, lod - 1)], rocks);
       triangles.ore = count(this.lodOres[Math.max(0, lod - 1)], ores);
-      add(this.lodTrees[Math.max(0, lod - 1)], trees, white);
       add(this.lodRocks[Math.max(0, lod - 1)], rocks, white);
       add(this.lodOres[Math.max(0, lod - 1)], ores, ORE_TINT);
       const merged = mergePlaced(entries);
